@@ -1,19 +1,18 @@
-# Randomly generate ant nests on the landscape
-# Place single mature individual at centre
-# Individual reproduces and then seeds disperse
-# For all dispersed seeds, model dispersal with a predation coefficient
-# Run demo matrix to get germination rate and growth
-# Repeat previous 3 steps
+##### Load libraries and initialise data ------------------------------------------------------------------
 
-
+# Load libraries
 library(SuppDists)
 library(MASS)
 library(tidyverse)
 library(truncnorm)
 
-#plants <- data.frame(ID = 1, r = 0, theta = 0, x = 0, y = 0, size = 0.8, stage = 2)
-plants <- data.frame(r = c(1, 4, 6, 2), theta = c(pi/2, pi, 3*pi/2, 2*pi),
-                     x = c(0, -4, 0, 2), y = c(1, 0, -6, 0), stage = c(1, 2, 2, 2))
+
+
+
+
+##### 2D expansion ----------------------------------------------------------------------------------------
+
+plants <- data.frame(r = 0, theta = 0, x = 0, y = 0, stage = 2)
 
 seeds <- data.frame(matrix(ncol = 5, nrow = 0))
 colnames(seeds) <- c("r", "theta", "x", "y", "germ")
@@ -21,7 +20,7 @@ colnames(seeds) <- c("r", "theta", "x", "y", "germ")
 # Placeholder dispersal kernel
 kern <- function(n, x = 0, y = 0){
   theta <- sample(seq(0.1, 2*pi, by = pi/100), n, replace = TRUE)
-  r <- rlnorm(n)
+  r <- rlnorm(n, meanlog = 0.25, sdlog = 1.1)
   x <- r*cos(theta) + x
   y <- r*sin(theta) + y
   return(data.frame(theta, r, x, y))}
@@ -34,7 +33,6 @@ nests <- function(n){
   x <- r*cos(theta)
   y <- r*sin(theta)
   return(data.frame(theta, r, x, y))}
-
 
 # for below, separate rosettes and adults first, then rejoin after performing procedures on adults
 
@@ -81,27 +79,87 @@ plot(plants$x, plants$y, xlim = c(-50, 50), ylim = c(-50, 50), col = rgb(r = 0, 
 
 
 
+##### 1D expansion ----------------------------------------------------------------------------------------
+
+# Placeholder dispersal kernel until WALD is implemented
+kern <- function(n, d0 = 0){
+  d <- rlnorm(n, meanlog = 0.25, sdlog = 1.1) + d0
+  return(d)}
+
+# Initialise data; start with a single rosette and adult
+plants <- data.frame(d = c(0, 0), stage = c(1, 2))
+seeds <- data.frame(matrix(ncol = 2, nrow = 0))
+colnames(seeds) <- c("d", "germ")
+vals <- c()
+
+# Simulate dispersal and seed survival
+for(i in 1:nrow(plants)){
+  if(plants$stage[i] == 2){
+    n <- demo("reproduction")
+    newSeeds <- data.frame(kern(n, plants$d[i]))
+    newSeeds <- cbind(newSeeds, replicate(n, demo("germination")))
+    names(newSeeds) <- c("d", "germ")
+    newSeeds <- newSeeds[newSeeds$germ == 1, ]
+    seeds <- rbind(seeds, newSeeds)}}
+
+# for below, separate rosettes and adults first, then rejoin after performing procedures on adults
+
+# Kill rosettes if density is too high
+maxR <- nrow(plants)
+i <- 1
+while(i < maxR){
+  if(plants$stage[i] == 1){
+    dists <- plants$d[i] - plants$d
+    if(length(dists[abs(dists) < 1]) > 10){
+      plants <- plants[-i, ]
+      maxR <- maxR - 1} else {i <- i + 1}} else {i <- i + 1}}
+
+# Kill adults after they reproduce
+plants <- plants[plants$stage != 2, ]
+
+# Rosettes from previous year become adults
+plants$stage[plants$stage == 1] <- 2
+
+# Surviving seeds become rosettes
+seeds$stage <- rep(1, nrow(seeds))
+seeds <- seeds[, !names(seeds) == c("germ")]
+plants <- rbind(plants, seeds)
+
+# Reset seeds
+# Can change this later to account for seed bank
+seeds <- data.frame(matrix(ncol = 2, nrow = 0))
+colnames(seeds) <- c("d", "germ")
+
+# Plot density over space
+plot(plants$d, rep(0, nrow(plants)), xlim = c(0, 500), ylim = c(-1, 1),
+     col = rgb(r = 0, g = 0, b = 0, alpha = 0.2), pch = 16)
+vals <- c(vals, max(plants$d))
+
+# Get wavespeeds
+diff(vals)
 
 
-# 11 points
-# 10 bins
-seq(0, 1.5, by = 0.15)
-# size is integer between 1 and 10
 
-# two classes: rosette (y1) and adult (y2)
+
+
+
+
+
+
+
 
 
 # Demography
 # In a given iteration, run reproduction, then germination, then survival, then growth
 demo <- function(dType){
   if(dType == "reproduction"){
-    return(100)}
+    return(1000)}
   if(dType == "germination"){
-    prob <- 0.05
+    prob <- 0.04
     outcome <- sample(c(0, 1), 1, prob = c(1 - prob, prob))
     return(outcome)}
   if(dType == "survival"){
-    prob <- 0.92
+    prob <- 0.95
     outcome <- sample(c(0, 1), 1, prob = c(1 - prob, prob))
     return(outcome)}
   if(dType == "growth"){
