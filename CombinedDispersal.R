@@ -87,7 +87,7 @@ kern <- function(n, d0 = 0){
   return(d)}
 
 # Initialise data; start with a single rosette and adult
-plants <- data.frame(d = c(0, 0), stage = c(1, 2))
+plants <- data.frame(d = c(0.01, 0.01), stage = c(1, 2))
 seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
 vals <- c()
@@ -97,22 +97,10 @@ for(i in 1:nrow(plants)){
   if(plants$stage[i] == 2){
     n <- demo("reproduction")
     newSeeds <- data.frame(kern(n, plants$d[i]))
-    newSeeds <- cbind(newSeeds, replicate(n, demo("germination")))
+    newSeeds <- cbind(newSeeds, rep(1, n))
     names(newSeeds) <- c("d", "germ")
     newSeeds <- newSeeds[newSeeds$germ == 1, ]
     seeds <- rbind(seeds, newSeeds)}}
-
-# for below, separate rosettes and adults first, then rejoin after performing procedures on adults
-
-# Kill rosettes if density is too high
-maxR <- nrow(plants)
-i <- 1
-while(i < maxR){
-  if(plants$stage[i] == 1){
-    dists <- plants$d[i] - plants$d
-    if(length(dists[abs(dists) < 1]) > 10){
-      plants <- plants[-i, ]
-      maxR <- maxR - 1} else {i <- i + 1}} else {i <- i + 1}}
 
 # Kill adults after they reproduce
 plants <- plants[plants$stage != 2, ]
@@ -125,14 +113,23 @@ seeds$stage <- rep(1, nrow(seeds))
 seeds <- seeds[, !names(seeds) == c("germ")]
 plants <- rbind(plants, seeds)
 
+# Kill rosettes if density is too high
+# Do this by sorting so that adults come first and are prioritised
+plants %>% 
+  mutate(bin = as.integer(cut(d, breaks = seq(0, ceiling(max(plants$d)), 1)))) %>% 
+  arrange(bin, desc(stage)) %>% 
+  group_by(bin) %>%
+  slice(1:pmin(10, n())) %>% 
+  data.frame() -> plants
+plants <- plants[, !names(plants) == c("bin")]
+
 # Reset seeds
 # Can change this later to account for seed bank
 seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
 
 # Plot density over space
-plot(plants$d, rep(0, nrow(plants)), xlim = c(0, 500), ylim = c(-1, 1),
-     col = rgb(r = 0, g = 0, b = 0, alpha = 0.2), pch = 16)
+hist(plants$d, breaks = seq(0, 1000, by = 1), ylim = c(0, 12), xlab = "Distance", ylab = "Density")
 vals <- c(vals, max(plants$d))
 
 # Get wavespeeds
@@ -148,16 +145,13 @@ diff(vals)
 
 
 
-
 # Demography
 # In a given iteration, run reproduction, then germination, then survival, then growth
 demo <- function(dType){
   if(dType == "reproduction"){
-    return(1000)}
-  if(dType == "germination"){
-    prob <- 0.04
-    outcome <- sample(c(0, 1), 1, prob = c(1 - prob, prob))
-    return(outcome)}
+    nSeed <- 1000
+    pPred <- 0.95
+    return(nSeed - nSeed*pPred)}
   if(dType == "survival"){
     prob <- 0.95
     outcome <- sample(c(0, 1), 1, prob = c(1 - prob, prob))
