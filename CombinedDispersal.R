@@ -6,6 +6,80 @@ library(MASS)
 library(tidyverse)
 library(truncnorm)
 
+# Load in raw weather data
+data_ws1 <- read.csv("Weather1.csv")
+data_ws2 <- read.csv("Weather2.csv")
+
+# Load in terminal velocity data
+# Use ambient TVs since we're only examining warming effects on height distribution
+data_tv <- read.csv("SeedDropData.csv")
+data_tv <- subset(data_tv, Warming == "A")
+
+
+
+
+
+##### Set up dispersal framework --------------------------------------------------------------------------
+
+# Create PDF of wind speeds
+# Assume no seed release occurs for wind speeds of zero, so remove zero values
+ws_values <- c(data_ws1$Wind1, data_ws2$Wind1)
+ws_values <- ws_values[ws_values > 0]
+ws_pdf <- density(ws_values, from = min(ws_values), to = max(ws_values), bw = 0.05)
+ws_mean <- mean(ws_values)
+
+# Create PDF of wind speeds
+# Terminal velocity is drop tube length divided by drop time
+tv_values <- na.omit(1.25/data_tv$DT.Avg)
+tv_pdf <- density(tv_values, from = min(tv_values), to = max(tv_values), bw = 0.05)
+tv_mean <- mean(tv_values)
+
+# Function generating a dispersal kernel using WALD model (Katul et al. 2005)
+# Code adapted from Skarpaas and Shea (2007)
+WALD.b <- function(n, H){
+  
+  # Initialise physical constants
+  K <- 0.4      # von Karman constant
+  C0 <- 3.125   # Kolmogorov constant
+  
+  # Initialise other fixed quantities
+  Aw <- 1.3     # Ratio of sigmaw to ustar
+  h <- 0.15     # Grass cover height
+  d <- 0.7*h    # Zero-plane displacement
+  z0 <- 0.1*h   # Roughness length
+  zm <- 1       # Wind speed measurement height
+  
+  # Let n be the number of simulation replications
+  # Let H be the seed release height
+  
+  # Simulate wind speeds from empirical distribution of wind speeds
+  Um <- rnorm(n, sample(ws_values, size = n, replace = TRUE), ws_pdf$bw)
+  
+  # Simulate terminal velocities from empirical distribution of terminal velocities
+  f <- rnorm(n, sample(tv_values, size = n, replace = TRUE), tv_pdf$bw)
+  
+  # Calculate ustar, the friction velocity
+  ustar <- K*Um*(log((zm - d)/z0))^(-1)
+  
+  # Set up integrand for wind speed between vegetation surface and drop height H
+  integrand <- function(z){
+    (1/K)*(log((z - d)/z0))}
+  
+  # Integrate to obtain U
+  U <- (ustar/H)*integrate(integrand, lower = d + z0, upper = H)$value
+  
+  # Calculate instability parameter
+  sigma <- 2*(Aw^2)*sqrt((K*(H - d)*ustar)/(C0*U))
+  
+  # Calculate scale parameter lambda
+  lambda <- (H/sigma)^2
+  
+  # Calculate location parameter nu
+  nu <- H*U/f
+  
+  # Generate inverse Gaussian distribution
+  return(rinvGauss(n, nu = nu, lambda = lambda))}
+
 
 
 
@@ -129,7 +203,7 @@ seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
 
 # Plot density over space
-hist(plants$d, breaks = seq(0, 1000, by = 1), ylim = c(0, 12), xlab = "Distance", ylab = "Density")
+hist(plants$d, breaks = seq(0, 500, by = 1), ylim = c(0, 12), xlab = "Distance", ylab = "Density")
 vals <- c(vals, max(plants$d))
 
 # Get wavespeeds
