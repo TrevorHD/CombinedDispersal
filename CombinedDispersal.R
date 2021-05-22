@@ -107,68 +107,74 @@ demo <- function(dType){
 
 ##### 2D expansion ----------------------------------------------------------------------------------------
 
-plants <- data.frame(r = 0, theta = 0, x = 0, y = 0, stage = 2)
+# Estimate dispersal distances from given point; assume 1m plant height
+kern <- function(n, x0 = 0, y0 = 0){
+  r <- WALD.b(n, 1)
+  theta <- sample(seq(0.1, 2*pi, by = pi/100), n, replace = TRUE)
+  x <- r*cos(theta) + x0
+  y <- r*sin(theta) + y0
+  return(data.frame(theta, r, x, y))}
 
+# Initialise data; start with a single rosette and adult
+plants <- data.frame(r = c(0.01, 0.01), theta = c(0, 0), x = c(0.01, 0.01), y = c(0.01, 0.01), stage = c(1, 2))
 seeds <- data.frame(matrix(ncol = 5, nrow = 0))
 colnames(seeds) <- c("r", "theta", "x", "y", "germ")
-
-# Placeholder dispersal kernel
-kern <- function(n, x = 0, y = 0){
-  theta <- sample(seq(0.1, 2*pi, by = pi/100), n, replace = TRUE)
-  r <- rlnorm(n, meanlog = 0.25, sdlog = 1.1)
-  x <- r*cos(theta) + x
-  y <- r*sin(theta) + y
-  return(data.frame(theta, r, x, y))}
+vals <- c()
 
 # Placeholder nest generation
 # Max range = 100 m
-nests <- function(n){
-  theta <- sample(seq(0.1, 2*pi, by = pi/100), n, replace = TRUE)
-  r <- sample(seq(0.1, 100, by = 0.1), n, replace = TRUE)
-  x <- r*cos(theta)
-  y <- r*sin(theta)
-  return(data.frame(theta, r, x, y))}
-
-# for below, separate rosettes and adults first, then rejoin after performing procedures on adults
+#nests <- function(n){
+#  theta <- sample(seq(0.1, 2*pi, by = pi/100), n, replace = TRUE)
+#  r <- sample(seq(0.1, 100, by = 0.1), n, replace = TRUE)
+#  x <- r*cos(theta)
+#  y <- r*sin(theta)
+#  return(data.frame(theta, r, x, y))}
 
 # Simulate dispersal and seed survival
 for(i in 1:nrow(plants)){
   if(plants$stage[i] == 2){
     n <- demo("reproduction")
     newSeeds <- kern(n, plants$x[i], plants$y[i])
-    newSeeds <- cbind(newSeeds, replicate(n, demo("germination")))
+    newSeeds <- cbind(newSeeds, rep(1, n))
     names(newSeeds)[5] <- "germ"
     newSeeds <- newSeeds[newSeeds$germ == 1, ]
     seeds <- rbind(seeds, newSeeds)}}
 
-# for below, separate rosettes and adults first, then rejoin after performing procedures on adults
-
-# Kill rosettes if density is too high
-for(i in 1:nrow(plants)){
-  if(plants$stage[i] == 1){
-    dists <- (plants$x[i] - plants$x)^2 + (plants$y[i] - plants$y)^2
-    if(length(dists[dists < 1]) > 8){
-      plants <- plants[-i, ]
-    }
-  }
-}
-
-# Adults die after reproducing
+# Kill adults after they reproduce
 plants <- plants[plants$stage != 2, ]
 
 # Rosettes from previous year become adults
 plants$stage[plants$stage == 1] <- 2
 
 # Surviving seeds become rosettes
-seeds <- seeds[, !names(seeds) == c("germ")]
 seeds$stage <- rep(1, nrow(seeds))
+seeds <- seeds[, !names(seeds) == c("germ")]
 plants <- rbind(plants, seeds)
+
+# Kill rosettes if density is too high
+# Do this by sorting so that adults come first and are prioritised
+plants %>% 
+  mutate(xbin = as.integer(cut(x, breaks = seq(floor(min(plants$x)), ceiling(max(plants$x)), 1))),
+         ybin = as.integer(cut(y, breaks = seq(floor(min(plants$y)), ceiling(max(plants$y)), 1)))) %>% 
+  arrange(xbin, ybin, desc(stage)) %>% 
+  group_by(xbin, ybin) %>%
+  slice(1:pmin(10, n())) %>% 
+  data.frame() -> plants
+plants <- plants[, !names(plants) %in% c("xbin", "ybin")]
 
 # Reset seeds
 # Can change this later to account for seed bank
 seeds <- data.frame(matrix(ncol = 5, nrow = 0))
+colnames(seeds) <- c("r", "theta", "x", "y", "germ")
 
-plot(plants$x, plants$y, xlim = c(-50, 50), ylim = c(-50, 50), col = rgb(r = 0, g = 0, b = 0, alpha = 0.2), pch = 16)
+# Plot density over space
+# Note: r is relative to last point of dispersal, so we calculate distance manually
+plot(plants$x, plants$y, xlim = c(-200, 200), ylim = c(-200, 200),
+     col = rgb(r = 0, g = 0, b = 0, alpha = 0.2), pch = 16)
+vals <- c(vals, max(sqrt((plants$x)^2 + (plants$y)^2)))
+
+# Get wavespeeds
+diff(vals)
 
 
 
@@ -176,7 +182,7 @@ plot(plants$x, plants$y, xlim = c(-50, 50), ylim = c(-50, 50), col = rgb(r = 0, 
 
 ##### 1D expansion ----------------------------------------------------------------------------------------
 
-# Placeholder dispersal kernel until WALD is implemented; assume 1m height
+# Estimate dispersal distances from given point; assume 1m plant height
 kern <- function(n, d0 = 0){
   d <- WALD.b(n, 1) + d0
   return(d)}
