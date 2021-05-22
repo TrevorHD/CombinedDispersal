@@ -78,7 +78,28 @@ WALD.b <- function(n, H){
   nu <- H*U/f
   
   # Generate inverse Gaussian distribution
-  return(rinvGauss(n, nu = nu, lambda = lambda))}
+  # Generate more than n to deal with NAs and then cut down to n
+  dists <- as.numeric(na.omit(rinvGauss(n*1.25, nu = nu, lambda = lambda)))
+  return(dists[1:n])}
+
+
+
+
+
+##### Set up demography framework -------------------------------------------------------------------------
+
+# In a given iteration, run reproduction, then germination, then survival, then growth
+demo <- function(dType){
+  if(dType == "reproduction"){
+    nSeed <- 1000
+    pPred <- 0.95
+    return(nSeed - nSeed*pPred)}
+  if(dType == "survival"){
+    prob <- 0.95
+    outcome <- sample(c(0, 1), 1, prob = c(1 - prob, prob))
+    return(outcome)}
+  if(dType == "growth"){
+    return(rtruncnorm(1, a = 0.4, b = 1.7, mean = 1))}}
 
 
 
@@ -155,9 +176,9 @@ plot(plants$x, plants$y, xlim = c(-50, 50), ylim = c(-50, 50), col = rgb(r = 0, 
 
 ##### 1D expansion ----------------------------------------------------------------------------------------
 
-# Placeholder dispersal kernel until WALD is implemented
+# Placeholder dispersal kernel until WALD is implemented; assume 1m height
 kern <- function(n, d0 = 0){
-  d <- rlnorm(n, meanlog = 0.25, sdlog = 1.1) + d0
+  d <- WALD.b(n, 1) + d0
   return(d)}
 
 # Initialise data; start with a single rosette and adult
@@ -208,32 +229,4 @@ vals <- c(vals, max(plants$d))
 
 # Get wavespeeds
 diff(vals)
-
-
-
-
-
-
-
-
-
-
-
-# Demography
-# In a given iteration, run reproduction, then germination, then survival, then growth
-demo <- function(dType){
-  if(dType == "reproduction"){
-    nSeed <- 1000
-    pPred <- 0.95
-    return(nSeed - nSeed*pPred)}
-  if(dType == "survival"){
-    prob <- 0.95
-    outcome <- sample(c(0, 1), 1, prob = c(1 - prob, prob))
-    return(outcome)}
-  if(dType == "growth"){
-    return(rtruncnorm(1, a = 0.4, b = 1.7, mean = 1))}}
-
-
-
-
 
