@@ -182,10 +182,28 @@ diff(vals)
 
 ##### 1D expansion ----------------------------------------------------------------------------------------
 
+# Function to see if a seed is taken to the nearest nest
+nestsearch <- function(d, range){
+  dists <- abs(d - nests)
+  centre <- nests[which.min(dists)]
+  toNest <- sample(c(0, 1), 1, prob = c(0.05, 0.95))
+  ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
+  
+  #centres <- nests[dists < range]
+  #dists <- dists[dists < range]
+  
+#  if(length(dists) > 0){
+#    probs <- abs(1 - ptruncnorm(dists, a = -range, b = range, mean = 0, sd = 4))*2
+#    for(i in 1:length(probs)){
+#      result <- sample(c(0, 1), 1, prob = c(probs[i], 1 - probs[i]))}}
+
 # Estimate dispersal distances from given point; assume 1m plant height
 kern <- function(n, d0 = 0){
   d <- WALD.b(n, 1) + d0
   return(d)}
+
+# Generate nests; density d = 0.05 nests/m
+nests <- sample(seq(0, 1000, by = 0.1), 0.1*500)
 
 # Initialise data; start with a single rosette and adult
 plants <- data.frame(d = c(0.01, 0.01), stage = c(1, 2))
@@ -202,6 +220,8 @@ for(i in 1:nrow(plants)){
     names(newSeeds) <- c("d", "germ")
     newSeeds <- newSeeds[newSeeds$germ == 1, ]
     seeds <- rbind(seeds, newSeeds)}}
+
+seeds$d <- sapply(seeds$d, nestsearch, range = 5)
 
 # Kill adults after they reproduce
 plants <- plants[plants$stage != 2, ]
@@ -230,7 +250,7 @@ seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
 
 # Plot density over space
-hist(plants$d, breaks = seq(0, 500, by = 1), ylim = c(0, 12), xlab = "Distance", ylab = "Density")
+#hist(plants$d, breaks = seq(0, 1000, by = 1), ylim = c(0, 12), xlab = "Distance", ylab = "Density")
 vals <- c(vals, max(plants$d))
 
 # Get wavespeeds
