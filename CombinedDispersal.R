@@ -188,71 +188,91 @@ nestsearch <- function(d, range){
   centre <- nests[which.min(dists)]
   toNest <- sample(c(0, 1), 1, prob = c(0.05, 0.95))
   ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
-  
-  #centres <- nests[dists < range]
-  #dists <- dists[dists < range]
-  
-#  if(length(dists) > 0){
-#    probs <- abs(1 - ptruncnorm(dists, a = -range, b = range, mean = 0, sd = 4))*2
-#    for(i in 1:length(probs)){
-#      result <- sample(c(0, 1), 1, prob = c(probs[i], 1 - probs[i]))}}
 
-# Estimate dispersal distances from given point; assume 1m plant height
+# Estimate dispersal distances from given point; assume 1m plant height  
 kern <- function(n, d0 = 0){
   d <- WALD.b(n, 1) + d0
   return(d)}
 
-# Generate nests; density d = 0.05 nests/m
-nests <- sample(seq(0, 1000, by = 0.1), 0.1*500)
+# Generate nests; density d = 0.1 nests/m
+nests <- sample(seq(0, 25000, by = 0.1), 0.1*25000)
 
-# Initialise data; start with a single rosette and adult
-plants <- data.frame(d = c(0.01, 0.01), stage = c(1, 2))
+# Initialise data; start with a single rosette
+plants <- data.frame(d = 0.01, stage = 1)
 seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
 vals <- c()
 
-# Simulate dispersal and seed survival
-for(i in 1:nrow(plants)){
-  if(plants$stage[i] == 2){
-    n <- demo("reproduction")
-    newSeeds <- data.frame(kern(n, plants$d[i]))
-    newSeeds <- cbind(newSeeds, rep(1, n))
-    names(newSeeds) <- c("d", "germ")
-    newSeeds <- newSeeds[newSeeds$germ == 1, ]
-    seeds <- rbind(seeds, newSeeds)}}
+# Set various parameters for wave model
+nestOn <- TRUE    # Should ant nests be included
+range <- 5        # Max detection range (m) from ant nests
+trim <- TRUE      # Should core area of wave be trimmed?
+trimAmt <- 500    # Distance (m) behind wavefront to trim
+tDens <- 10       # Max thistle density per metre
+plotOn <- FALSE   # Plot wave?
 
-seeds$d <- sapply(seeds$d, nestsearch, range = 5)
+# Run invasion wave simulation
+for(i in 1:100){
+  
+  # Simulate primary dispersal via wind and seed survival
+  for(i in 1:nrow(plants)){
+    if(plants$stage[i] == 2){
+      n <- demo("reproduction")
+      newSeeds <- data.frame(kern(n, plants$d[i]))
+      newSeeds <- cbind(newSeeds, rep(1, n))
+      names(newSeeds) <- c("d", "germ")
+      newSeeds <- newSeeds[newSeeds$germ == 1, ]
+      seeds <- rbind(seeds, newSeeds)}}
 
-# Kill adults after they reproduce
-plants <- plants[plants$stage != 2, ]
+  # Simulate secondary dispersal via ants
+  if(nestOn == TRUE){
+    seeds$d <- sapply(seeds$d, nestsearch, range = range)}
 
-# Rosettes from previous year become adults
-plants$stage[plants$stage == 1] <- 2
+  # Kill adults after they reproduce
+  plants <- plants[plants$stage != 2, ]
 
-# Surviving seeds become rosettes
-seeds$stage <- rep(1, nrow(seeds))
-seeds <- seeds[, !names(seeds) == c("germ")]
-plants <- rbind(plants, seeds)
+  # Rosettes from previous year become adults
+  plants$stage[plants$stage == 1] <- 2
 
-# Kill rosettes if density is too high
-# Do this by sorting so that adults come first and are prioritised
-plants %>% 
-  mutate(bin = as.integer(cut(d, breaks = seq(0, ceiling(max(plants$d)), 1)))) %>% 
-  arrange(bin, desc(stage)) %>% 
-  group_by(bin) %>%
-  slice(1:pmin(10, n())) %>% 
-  data.frame() -> plants
-plants <- plants[, !names(plants) == c("bin")]
+  # Surviving seeds become rosettes
+  seeds$stage <- rep(1, nrow(seeds))
+  seeds <- seeds[, !names(seeds) == c("germ")]
+  plants <- rbind(plants, seeds)
 
-# Reset seeds
-# Can change this later to account for seed bank
-seeds <- data.frame(matrix(ncol = 2, nrow = 0))
-colnames(seeds) <- c("d", "germ")
+  # Kill rosettes if density is too high
+  # Do this by sorting so that adults come first and are prioritised
+  plants %>% 
+    mutate(bin = as.integer(cut(d, breaks = seq(0, ceiling(max(plants$d)), 1)))) %>% 
+    arrange(bin, desc(stage)) %>% 
+    group_by(bin) %>%
+    slice(1:pmin(tDens, n())) %>% 
+    data.frame() -> plants
+  plants <- plants[, !names(plants) == c("bin")]
 
-# Plot density over space
-#hist(plants$d, breaks = seq(0, 1000, by = 1), ylim = c(0, 12), xlab = "Distance", ylab = "Density")
-vals <- c(vals, max(plants$d))
+  # Trim core areas as wave progresses to save computational resources
+  if(trim == TRUE){
+    plants <- plants[plants$d > max(plants$d) - trimAmt, ]}
+  
+  # Reset seeds
+  # Can change this later to account for seed bank
+  seeds <- data.frame(matrix(ncol = 2, nrow = 0))
+  colnames(seeds) <- c("d", "germ")
+
+  # Plot density over space
+  if(plotOn == TRUE){
+    hist(plants$d, breaks = seq(0, 1000, by = 1), ylim = c(0, 12), xlab = "Distance", ylab = "Density")}
+  
+  # Store wavefront distance
+  vals <- c(vals, max(plants$d))}
 
 # Get wavespeeds
 diff(vals)
+
+# Extra code for 1-D nestsearch function
+centres <- nests[dists < range]
+dists <- dists[dists < range]
+if(length(dists) > 0){
+  probs <- abs(1 - ptruncnorm(dists, a = -range, b = range, mean = 0, sd = 4))*2
+  for(i in 1:length(probs)){
+    result <- sample(c(0, 1), 1, prob = c(probs[i], 1 - probs[i]))}}
 
