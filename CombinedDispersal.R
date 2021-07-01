@@ -7,13 +7,13 @@ library(tidyverse)
 library(truncnorm)
 
 # Load in raw weather data
-data_ws1 <- read.csv("Weather1.csv")
-data_ws2 <- read.csv("Weather2.csv")
+data_ws1 <- read.csv("Data/Weather1.csv")
+data_ws2 <- read.csv("Data/Weather2.csv")
 
 # Load in terminal velocity data
 # Use ambient TVs since we're only examining warming effects on height distribution
-data_tv <- read.csv("SeedDropData.csv")
-data_tv <- subset(data_tv, Warming == "A")
+data_tv <- read.csv("Data/SeedDropData.csv")
+data_tv <- subset(data_tv, Warming == "A" & Mow == "CTL")
 
 
 
@@ -91,8 +91,8 @@ WALD.b <- function(n, H){
 # In a given iteration, run reproduction, then germination, then survival, then growth
 demo <- function(dType){
   if(dType == "reproduction"){
-    nSeed <- 1000
-    pPred <- 0.95
+    nSeed <- 374
+    pPred <- 0.99
     return(nSeed - nSeed*pPred)}
   if(dType == "survival"){
     prob <- 0.95
@@ -190,15 +190,15 @@ nestsearch <- function(d, range){
   ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
 
 # Estimate dispersal distances from given point; assume 1m plant height  
-kern <- function(n, d0 = 0){
-  d <- WALD.b(n, 1) + d0
+kern <- function(n, h, d0 = 0){
+  d <- WALD.b(n, h) + d0
   return(d)}
 
 # Generate nests; density d = 0.1 nests/m
 nests <- sample(seq(0, 25000, by = 0.1), 0.1*25000)
 
 # Initialise data; start with a single rosette
-plants <- data.frame(d = 0.01, stage = 1)
+plants <- data.frame(d = 0.01, stage = 1, rsize = rnorm(1, mean = 25, sd = 3), h = 0, nflow = 0)
 seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
 vals <- c()
@@ -217,8 +217,8 @@ for(i in 1:100){
   # Simulate primary dispersal via wind and seed survival
   for(i in 1:nrow(plants)){
     if(plants$stage[i] == 2){
-      n <- demo("reproduction")
-      newSeeds <- data.frame(kern(n, plants$d[i]))
+      n <- round(plants$nflow[i]*demo("reproduction"))
+      newSeeds <- data.frame(kern(n, plants$h[i], plants$d[i]))
       newSeeds <- cbind(newSeeds, rep(1, n))
       names(newSeeds) <- c("d", "germ")
       newSeeds <- newSeeds[newSeeds$germ == 1, ]
@@ -232,10 +232,15 @@ for(i in 1:100){
   plants <- plants[plants$stage != 2, ]
 
   # Rosettes from previous year become adults
+  plants$h[plants$stage == 1] <- 0.25 + plants$rsize[plants$stage == 1]/100*3
+  plants$nflow[plants$stage == 1] <- 6 + round(plants$rsize[plants$stage == 1]/100*50)
   plants$stage[plants$stage == 1] <- 2
 
   # Surviving seeds become rosettes
   seeds$stage <- rep(1, nrow(seeds))
+  seeds$rsize <- rnorm(nrow(seeds), mean = 25, sd = 3)
+  seeds$h <- rep(0, nrow(seeds))
+  seeds$nflow <- rep(0, nrow(seeds))
   seeds <- seeds[, !names(seeds) == c("germ")]
   plants <- rbind(plants, seeds)
 
