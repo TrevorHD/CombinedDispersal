@@ -237,11 +237,11 @@ generatePlots <- function(){
   for(i in (1:(length(PlotList)/2)*2)){
     lower <- c()
     if(max(PlotList[[i]] > 500)){
-      lower <- rep(1:(min(PlotList[[i]]) - 1), 10)}
-    hist(c(lower, PlotList[[i]]), breaks = seq(0, 3000, by = 10),
-         ylim = c(0, 120), xlab = "Distance", ylab = "Density", main = "")
-    text(x = 2900, y = 110, paste0("t = ", i))}}
-save_gif(generatePlots(), "wave.gif", delay = 0.4, width = 1280, height = 720, res = 144)
+      lower <- rep(0:(floor(min(PlotList[[i]])) - 1), 10) + 0.01}
+    hist(c(lower, PlotList[[i]]), breaks = seq(0, 3000, by = 20),
+         ylim = c(0, 250), xlab = "Distance", ylab = "Density", main = "")
+    text(x = 2900, y = 220, paste0("t = ", i))}}
+save_gif(generatePlots(), "Spread.gif", delay = 0.4, width = 1280, height = 720, res = 144)
 
 # Extra code for 1-D nestsearch function
 centres <- nests[dists < range]
