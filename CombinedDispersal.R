@@ -102,11 +102,18 @@ demo <- function(dType, n = 0, rsize = 0, nflow = 0){
   if(dType == "rsize"){
     return(rnorm(n, mean = 25, sd = 3))}
   
+  # Flowering probability as function of rosette size
+  if(dType == "flowering"){
+    prob <- 0.95 + rsize/1000
+    outcomes <- apply(X = cbind(prob, 1 - prob), MARGIN = 1, FUN = sample,
+                      x = c(1, 0), size = 1, replace = FALSE)
+    return(outcomes)}
+  
   # Flower production as function of rosette size
   if(dType == "flowers"){
     return(6 + round(rsize/100*50))}
   
-  # Rosette survival
+  # Rosette survival as function of rosette size
   if(dType == "survival"){
     prob <- 0.95 + rsize/1000
     outcomes <- apply(X = cbind(prob, 1 - prob), MARGIN = 1, FUN = sample,
@@ -139,7 +146,7 @@ kern <- function(n, h, d0 = 0){
 nests <- sample(seq(0, 25000, by = 0.1), 0.1*25000)
 
 # Initialise data; start with a single rosette
-plants <- data.frame(d = 0.01, stage = 1, rsize = demo("rsize", n = 1), h = 0, nflow = 0)
+plants <- data.frame(d = 0.01, stage = 1, rsize = demo("rsize", n = 1), h = 0, flow = 0, nflow = 0)
 seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
 vals <- c()
@@ -155,9 +162,10 @@ plotOn <- TRUE   # Plot wave?
 # Run invasion wave simulation
 for(i in 1:100){
   
-  # Simulate primary dispersal via wind and seed survival
+  # For flowering adults, simulate primary seed dispersal via wind
+  # Also simulate seed survival and establishment
   for(j in 1:nrow(plants)){
-    if(plants$stage[j] == 2){
+    if(plants$flow[j] == 1){
       n <- demo("seeds", nflow = plants$nflow[j])
       newSeeds <- data.frame(kern(n, plants$h[j], plants$d[j]))
       newSeeds <- cbind(newSeeds, rep(1, n))
@@ -165,11 +173,11 @@ for(i in 1:100){
       newSeeds <- newSeeds[newSeeds$germ == 1, ]
       seeds <- rbind(seeds, newSeeds)}}
   
-  # Simulate secondary dispersal via ants
+  # Simulate secondary seed dispersal via ants
   if(nestOn == TRUE){
     seeds$d <- sapply(seeds$d, nestsearch, range = range)}
   
-  # Kill adults after they reproduce
+  # Kill all adults after they reproduce
   plants <- plants[plants$stage != 2, ]
   
   # Remove rosettes that do not survive
@@ -177,14 +185,18 @@ for(i in 1:100){
     plants <- plants[plants$stage == 1, ][demo("survival", rsize = plants[plants$stage == 1, ]$rsize) == 1, ]}
   
   # Rosettes from previous year become adults
-  plants$h[plants$stage == 1] <- demo("growth", rsize = plants$rsize[plants$stage == 1])
-  plants$nflow[plants$stage == 1] <- demo("flowers", rsize = plants$rsize[plants$stage == 1])
+  # Simulate growth and flowering
   plants$stage[plants$stage == 1] <- 2
+  plants$h[plants$stage == 2] <- demo("growth", rsize = plants$rsize[plants$stage == 2])
+  if(sum(plants$stage == 2) > 0){
+    plants$flow[plants$stage == 2] <- demo("flowering", rsize = plants[plants$stage == 2, ]$rsize)}
+  plants$nflow[plants$flow == 1] <- demo("flowers", rsize = plants$rsize[plants$flow == 1])
   
   # Surviving seeds become rosettes
   seeds$stage <- rep(1, nrow(seeds))
   seeds$rsize <- demo("rsize", n = nrow(seeds))
   seeds$h <- rep(0, nrow(seeds))
+  seeds$flow<- rep(0, nrow(seeds))
   seeds$nflow <- rep(0, nrow(seeds))
   seeds <- seeds[, !names(seeds) == c("germ")]
   plants <- rbind(plants, seeds)
