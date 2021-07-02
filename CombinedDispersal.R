@@ -5,6 +5,7 @@ library(SuppDists)
 library(MASS)
 library(tidyverse)
 library(truncnorm)
+library(gifski)
 
 # Load in raw weather data
 data_ws1 <- read.csv("Data/Weather1.csv")
@@ -105,10 +106,12 @@ demo <- function(dType, n = 0, rsize = 0, nflow = 0){
   if(dType == "flowers"){
     return(6 + round(rsize/100*50))}
   
-  #if(dType == "survival"){
-  #  prob <- 0.95
-  #  outcome <- sample(c(0, 1), 1, prob = c(1 - prob, prob))
-  #  return(outcome)}
+  # Rosette survival
+  if(dType == "survival"){
+    prob <- 0.95 + rsize/1000
+    outcomes <- apply(X = cbind(prob, 1 - prob), MARGIN = 1, FUN = sample,
+                      x = c(1, 0), size = 1, replace = FALSE)
+    return(outcomes)}
   
   # Height as function of rosette size
   if(dType == "growth"){
@@ -147,16 +150,16 @@ range <- 5        # Max detection range (m) from ant nests
 trim <- TRUE      # Should core area of wave be trimmed?
 trimAmt <- 500    # Distance (m) behind wavefront to trim
 tDens <- 10       # Max thistle density per metre
-plotOn <- FALSE   # Plot wave?
+plotOn <- TRUE   # Plot wave?
 
 # Run invasion wave simulation
 for(i in 1:100){
   
   # Simulate primary dispersal via wind and seed survival
-  for(i in 1:nrow(plants)){
-    if(plants$stage[i] == 2){
-      n <- demo("seeds", nflow = plants$nflow[i])
-      newSeeds <- data.frame(kern(n, plants$h[i], plants$d[i]))
+  for(j in 1:nrow(plants)){
+    if(plants$stage[j] == 2){
+      n <- demo("seeds", nflow = plants$nflow[j])
+      newSeeds <- data.frame(kern(n, plants$h[j], plants$d[j]))
       newSeeds <- cbind(newSeeds, rep(1, n))
       names(newSeeds) <- c("d", "germ")
       newSeeds <- newSeeds[newSeeds$germ == 1, ]
@@ -168,6 +171,10 @@ for(i in 1:100){
   
   # Kill adults after they reproduce
   plants <- plants[plants$stage != 2, ]
+  
+  # Remove rosettes that do not survive
+  if(nrow(plants) > 0){
+    plants <- plants[plants$stage == 1, ][demo("survival", rsize = plants[plants$stage == 1, ]$rsize) == 1, ]}
   
   # Rosettes from previous year become adults
   plants$h[plants$stage == 1] <- demo("growth", rsize = plants$rsize[plants$stage == 1])
@@ -203,13 +210,23 @@ for(i in 1:100){
   
   # Plot density over space
   if(plotOn == TRUE){
-    hist(plants$d, breaks = seq(0, 1000, by = 1), ylim = c(0, 12), xlab = "Distance", ylab = "Density")}
+    if(i == 1){
+      PlotList <- list()}
+    PlotList[[i]] <- plants$d}
   
   # Store wavefront distance
   vals <- c(vals, max(plants$d))}
 
-# Get wavespeeds
-diff(vals)
+# Get mean wavespeed
+mean(diff(vals))
+
+# Generate GIF of population spread
+generatePlots <- function(){
+  for(i in 1:length(PlotList)){
+    hist(PlotList[[i]], breaks = seq(0, 2000, by = 1),
+         ylim = c(0, 12), xlab = "Distance", ylab = "Density")
+    text(x = 2900, y = 11, paste0("t = ", i))}}
+save_gif(generatePlots(), "wave.gif", delay = 0.5, width = 1280, height = 720, res = 144)
 
 # Extra code for 1-D nestsearch function
 centres <- nests[dists < range]
