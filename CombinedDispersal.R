@@ -157,7 +157,7 @@ kern <- function(n, h, d0 = 0){
 nests <- sample(seq(0, 25000, by = 0.1), 0.1*25000)
 
 # Initialise data; start with a single rosette
-plants <- data.frame(d = 0.01, stage = 1, rsize = demo("rsize", n = 1), h = 0, flow = 0, nflow = 0)
+plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", n = 1), h = 0, flow = 0, nflow = 0)
 seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
 vals <- c()
@@ -168,7 +168,7 @@ range <- 5        # Max detection range (m) from ant nests
 trim <- TRUE      # Should core area of wave be trimmed?
 trimAmt <- 500    # Distance (m) behind wavefront to trim
 tDens <- 10       # Max thistle density per metre
-plotOn <- FALSE   # Plot wave?
+plotOn <- TRUE    # Plot wave?
 
 # Run invasion wave simulation
 for(i in 1:100){
@@ -193,18 +193,22 @@ for(i in 1:100){
   
   # Remove rosettes that do not survive
   if(nrow(plants) > 0){
-    plants <- plants[plants$stage == 1, ][demo("survival", rsize = plants[plants$stage == 1, ]$rsize) == 1, ]}
+    plants <- plants[demo("survival", rsize = plants$rsize) == 1, ]}
   
-  # Rosettes from previous year become adults
-  # Simulate growth and flowering
+  # Some proportion of rosettes reach adulthood in one year
+  # Ones that don't will remain rosettes for another year before becoming adults
   plants$stage[plants$stage == 1] <- 2
+  plants$stage[plants$stage == 0] <- sample(c(1, 2), size = length(plants$stage[plants$stage == 0]),
+                                            prob = c(0.5, 0.5), replace = TRUE)
+
+  # Simulate growth and flowering for adults
   plants$h[plants$stage == 2] <- demo("growth", rsize = plants$rsize[plants$stage == 2])
   if(sum(plants$stage == 2) > 0){
     plants$flow[plants$stage == 2] <- demo("flowering", rsize = plants[plants$stage == 2, ]$rsize)}
   plants$nflow[plants$flow == 1] <- demo("flowers", rsize = plants$rsize[plants$flow == 1])
   
   # Surviving seeds become rosettes
-  seeds$stage <- rep(1, nrow(seeds))
+  seeds$stage <- rep(0, nrow(seeds))
   seeds$rsize <- demo("rsize", n = nrow(seeds))
   seeds$h <- rep(0, nrow(seeds))
   seeds$flow<- rep(0, nrow(seeds))
@@ -277,7 +281,7 @@ kern <- function(n, x0 = 0, y0 = 0){
   return(data.frame(theta, r, x, y))}
 
 # Initialise data; start with a single rosette and adult
-plants <- data.frame(r = c(0.01, 0.01), theta = c(0, 0), x = c(0.01, 0.01), y = c(0.01, 0.01), stage = c(1, 2))
+plants <- data.frame(r = c(0.01, 0.01), theta = c(0, 0), x = c(0.01, 0.01), y = c(0.01, 0.01), stage = c(0, 2))
 seeds <- data.frame(matrix(ncol = 5, nrow = 0))
 colnames(seeds) <- c("r", "theta", "x", "y", "germ")
 vals <- c()
@@ -305,10 +309,10 @@ for(i in 1:nrow(plants)){
 plants <- plants[plants$stage != 2, ]
 
 # Rosettes from previous year become adults
-plants$stage[plants$stage == 1] <- 2
+plants$stage[plants$stage == 0] <- 2
 
 # Surviving seeds become rosettes
-seeds$stage <- rep(1, nrow(seeds))
+seeds$stage <- rep(0, nrow(seeds))
 seeds <- seeds[, !names(seeds) == c("germ")]
 plants <- rbind(plants, seeds)
 
