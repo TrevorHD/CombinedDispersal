@@ -5,6 +5,7 @@ library(SuppDists)
 library(MASS)
 library(tidyverse)
 library(truncnorm)
+library(xlsx)
 library(gifski)
 
 # Load in raw weather data
@@ -15,6 +16,16 @@ data_ws2 <- read.csv("Data/Weather2.csv")
 # Use ambient TVs since we're only examining warming effects on height distribution
 data_tv <- read.csv("Data/SeedDropData.csv")
 data_tv <- subset(data_tv, Warming == "A" & Mow == "CTL")
+
+# Load height data as xlsx
+data_ht <- read.xlsx("Data/ThistleData.xlsx", sheetName = "Flowers")
+
+# Load rosette as xlsx
+data_rs <- read.xlsx("Data/ThistleData.xlsx", sheetName = "General")
+
+# Get distribution of rosette sizes; is normally distributed
+fits_rs <- fitdistr(na.omit(data_rs$DM_t), "normal")$estimate
+ks.test(na.omit(data_rs$DM_t), pnorm, mean = fits_rs[1], sd = fits_rs[2])
 
 
 
@@ -100,7 +111,7 @@ demo <- function(dType, n = 0, rsize = 0, nflow = 0){
   
   # Initial rosette size from seed
   if(dType == "rsize"){
-    return(rnorm(n, mean = 25, sd = 3))}
+    return(rtruncnorm(n, a = min(na.omit(data_rs$DM_t)), mean = fits_rs[1], sd = fits_rs[2]))}
   
   # Flowering probability as function of rosette size
   if(dType == "flowering"){
@@ -122,7 +133,7 @@ demo <- function(dType, n = 0, rsize = 0, nflow = 0){
   
   # Height as function of rosette size
   if(dType == "growth"){
-    return(0.25 + rsize/100*3)}}
+    return(0.7 + rsize/75*2)}}
 
 
 
@@ -157,7 +168,7 @@ range <- 5        # Max detection range (m) from ant nests
 trim <- TRUE      # Should core area of wave be trimmed?
 trimAmt <- 500    # Distance (m) behind wavefront to trim
 tDens <- 10       # Max thistle density per metre
-plotOn <- TRUE   # Plot wave?
+plotOn <- FALSE   # Plot wave?
 
 # Run invasion wave simulation
 for(i in 1:100){
