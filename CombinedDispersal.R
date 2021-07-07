@@ -173,40 +173,6 @@ plotOn <- TRUE    # Plot wave?
 # Run invasion wave simulation
 for(i in 1:100){
   
-  # For flowering adults, simulate primary seed dispersal via wind
-  # Also simulate seed survival and establishment
-  for(j in 1:nrow(plants)){
-    if(plants$flow[j] == 1){
-      n <- demo("seeds", nflow = plants$nflow[j])
-      newSeeds <- data.frame(kern(n, plants$h[j], plants$d[j]))
-      newSeeds <- cbind(newSeeds, rep(1, n))
-      names(newSeeds) <- c("d", "germ")
-      newSeeds <- newSeeds[newSeeds$germ == 1, ]
-      seeds <- rbind(seeds, newSeeds)}}
-  
-  # Simulate secondary seed dispersal via ants
-  if(nestOn == TRUE){
-    seeds$d <- sapply(seeds$d, nestsearch, range = range)}
-  
-  # Kill all adults after they reproduce
-  plants <- plants[plants$stage != 2, ]
-  
-  # Remove rosettes that do not survive
-  if(nrow(plants) > 0){
-    plants <- plants[demo("survival", rsize = plants$rsize) == 1, ]}
-  
-  # Some proportion of rosettes reach adulthood in one year
-  # Ones that don't will remain rosettes for another year before becoming adults
-  plants$stage[plants$stage == 1] <- 2
-  plants$stage[plants$stage == 0] <- sample(c(1, 2), size = length(plants$stage[plants$stage == 0]),
-                                            prob = c(0.5, 0.5), replace = TRUE)
-
-  # Simulate growth and flowering for adults
-  plants$h[plants$stage == 2] <- demo("growth", rsize = plants$rsize[plants$stage == 2])
-  if(sum(plants$stage == 2) > 0){
-    plants$flow[plants$stage == 2] <- demo("flowering", rsize = plants[plants$stage == 2, ]$rsize)}
-  plants$nflow[plants$flow == 1] <- demo("flowers", rsize = plants$rsize[plants$flow == 1])
-  
   # Surviving seeds become rosettes
   seeds$stage <- rep(0, nrow(seeds))
   seeds$rsize <- demo("rsize", n = nrow(seeds))
@@ -226,23 +192,57 @@ for(i in 1:100){
     data.frame() -> plants
   plants <- plants[, !names(plants) == c("bin")]
   
-  # Trim core areas as wave progresses to save computational resources
-  if(trim == TRUE){
-    plants <- plants[plants$d > max(plants$d) - trimAmt, ]}
-  
   # Reset seeds
   # Can change this later to account for seed bank
   seeds <- data.frame(matrix(ncol = 2, nrow = 0))
   colnames(seeds) <- c("d", "germ")
   
+  # Remove rosettes that do not survive
+  if(nrow(plants) > 0){
+    plants <- plants[demo("survival", rsize = plants$rsize) == 1, ]}
+  
+  # Trim core areas as wave progresses to save computational resources
+  if(trim == TRUE & nrow(plants) > 0){
+    plants <- plants[plants$d > max(plants$d) - trimAmt, ]}
+  
+  # Some proportion of rosettes reach adulthood in one year
+  # Ones that don't will remain rosettes for another year before becoming adults
+  plants$stage[plants$stage == 1] <- 2
+  plants$stage[plants$stage == 0] <- sample(c(1, 2), size = length(plants$stage[plants$stage == 0]),
+                                            prob = c(0.5, 0.5), replace = TRUE)
+  
+  # Simulate growth and flowering for adults
+  plants$h[plants$stage == 2] <- demo("growth", rsize = plants$rsize[plants$stage == 2])
+  if(sum(plants$stage == 2) > 0){
+    plants$flow[plants$stage == 2] <- demo("flowering", rsize = plants[plants$stage == 2, ]$rsize)}
+  plants$nflow[plants$flow == 1] <- demo("flowers", rsize = plants$rsize[plants$flow == 1])
+  
+  # For flowering adults, simulate primary seed dispersal via wind
+  # Also simulate seed survival and establishment
+  for(j in 1:nrow(plants)){
+    if(plants$flow[j] == 1){
+      n <- demo("seeds", nflow = plants$nflow[j])
+      newSeeds <- data.frame(kern(n, plants$h[j], plants$d[j]))
+      newSeeds <- cbind(newSeeds, rep(1, n))
+      names(newSeeds) <- c("d", "germ")
+      newSeeds <- newSeeds[newSeeds$germ == 1, ]
+      seeds <- na.omit(rbind(seeds, newSeeds))}}
+  
+  # Simulate secondary seed dispersal via ants
+  if(nestOn == TRUE){
+    seeds$d <- sapply(seeds$d, nestsearch, range = range)}
+  
+  # Store wavefront distance
+  vals <- c(vals, max(plants$d))
+  
+  # Kill all adults after they reproduce
+  plants <- plants[plants$stage != 2, ]
+  
   # Plot density over space
   if(plotOn == TRUE){
     if(i == 1){
       PlotList <- list()}
-    PlotList[[i]] <- plants$d}
-  
-  # Store wavefront distance
-  vals <- c(vals, max(plants$d))}
+    PlotList[[i]] <- plants$d}}
 
 # Get mean wavespeed
 mean(diff(vals))
