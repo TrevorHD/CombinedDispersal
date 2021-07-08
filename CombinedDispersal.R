@@ -154,7 +154,7 @@ kern <- function(n, h, d0 = 0){
   return(d)}
 
 # Generate nests; density d = 0.1 nests/m
-nests <- sample(seq(0, 25000, by = 0.1), 0.1*25000)
+nests <- sample(seq(0, 5000, by = 0.1), 0.1*5000) + 0.01
 
 # Initialise data; start with a single rosette
 plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", n = 1), h = 0, flow = 0, nflow = 0)
@@ -197,6 +197,12 @@ for(i in 1:100){
   seeds <- data.frame(matrix(ncol = 2, nrow = 0))
   colnames(seeds) <- c("d", "germ")
   
+  # Plot density over space
+  if(plotOn == TRUE){
+    if(i == 1){
+      PlotList <- list()}
+    PlotList[[i]] <- plants$d}
+  
   # Remove rosettes that do not survive
   if(nrow(plants) > 0){
     plants <- plants[demo("survival", rsize = plants$rsize) == 1, ]}
@@ -236,27 +242,27 @@ for(i in 1:100){
   vals <- c(vals, max(plants$d))
   
   # Kill all adults after they reproduce
-  plants <- plants[plants$stage != 2, ]
-  
-  # Plot density over space
-  if(plotOn == TRUE){
-    if(i == 1){
-      PlotList <- list()}
-    PlotList[[i]] <- plants$d}}
+  plants <- plants[plants$stage != 2, ]}
 
 # Get mean wavespeed
 mean(diff(vals))
 
 # Generate GIF of population spread
 generatePlots <- function(){
-  for(i in (1:(length(PlotList)/2)*2)){
+  for(i in 1:length(PlotList)){
     lower <- c()
+    if(length(PlotList[[i]]) == 0){
+      PlotList[[i]] <- 0}
     if(max(PlotList[[i]] > 500)){
-      lower <- rep(0:(floor(min(PlotList[[i]])) - 1), 10) + 0.01}
-    hist(c(lower, PlotList[[i]]), breaks = seq(0, 3000, by = 20),
+      minBin <- sum(PlotList[[i]] > floor(min(PlotList[[i]])) & PlotList[[i]] < ceiling(min(PlotList[[i]])))
+      lower <- c(rep(0:(floor(min(PlotList[[i]]) - 1)), 10) + 0.01,
+                 rep(floor(min(PlotList[[i]])) + 0.01, 10 - minBin))
+      if(min(PlotList[[i]]) < 1){
+        lower <- sort(lower)[-c(1:20)]}}
+    hist(c(lower, PlotList[[i]]), breaks = seq(0, 5000, by = 20),
          ylim = c(0, 250), xlab = "Distance", ylab = "Density", main = "")
-    text(x = 2900, y = 220, paste0("t = ", i))}}
-save_gif(generatePlots(), "Spread.gif", delay = 0.4, width = 1280, height = 720, res = 144)
+    text(x = 4700, y = 230, paste0("t = ", i))}}
+save_gif(generatePlots(), "Spread1.gif", delay = 0.3, width = 1280, height = 720, res = 144)
 
 # Extra code for 1-D nestsearch function
 centres <- nests[dists < range]
