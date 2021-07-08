@@ -248,7 +248,7 @@ for(i in 1:100){
 mean(diff(vals))
 
 # Generate GIF of population spread
-generatePlots <- function(){
+generatePlots <- function(type = "hist"){
   for(i in 1:length(PlotList)){
     lower <- c()
     if(length(PlotList[[i]]) == 0){
@@ -259,10 +259,22 @@ generatePlots <- function(){
                  rep(floor(min(PlotList[[i]])) + 0.01, 10 - minBin))
       if(min(PlotList[[i]]) < 1){
         lower <- sort(lower)[-c(1:20)]}}
-    hist(c(lower, PlotList[[i]]), breaks = seq(0, 5000, by = 20),
-         ylim = c(0, 250), xlab = "Distance", ylab = "Density", main = "")
-    text(x = 4700, y = 230, paste0("t = ", i))}}
-save_gif(generatePlots(), "Spread1.gif", delay = 0.3, width = 1280, height = 720, res = 144)
+    if(type == "hist"){
+      hist(c(lower, PlotList[[i]]), breaks = seq(0, 5000, by = 20), xlim = c(0, 5000), ylim = c(0, 250),
+           xaxt = "n", yaxt = "n", xlab = "Distance (m)", ylab = "Count", main = "")
+      axis(1, at = seq(0, 5000, 1000))
+      axis(2, at = seq(0, 250, 50))
+      text(x = 4700, y = 230, paste0("t = ", i))
+      box()}
+    if(type == "density"){
+      plotdata <- hist(c(lower, PlotList[[i]]), breaks = seq(0, 5000, by = 20), plot = FALSE)
+      plot(plotdata$mids, plotdata$density/max(plotdata$density), type = "l", xlim = c(0, 5000), ylim = c(0, 1.25),
+           xaxt = "n", yaxt = "n", xlab = "Distance (m)", ylab = "Relative Density", main = "")
+      axis(1, at = seq(0, 5000, 1000))
+      axis(2, at = seq(0, 1.25, 0.25))
+      text(x = 4700, y = 1.15, paste0("t = ", i))}}}
+save_gif(generatePlots("hist"), "Spread1.gif", delay = 0.3, width = 1280, height = 720, res = 144)
+save_gif(generatePlots("density"), "Spread2.gif", delay = 0.3, width = 1280, height = 720, res = 144)
 
 # Extra code for 1-D nestsearch function
 centres <- nests[dists < range]
