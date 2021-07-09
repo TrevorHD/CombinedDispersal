@@ -23,9 +23,15 @@ data_ht <- read.xlsx("Data/ThistleData.xlsx", sheetName = "Flowers")
 # Load rosette as xlsx
 data_rs <- read.xlsx("Data/ThistleData.xlsx", sheetName = "General")
 
-# Get distribution of rosette sizes; is normally distributed
-fits_rs <- fitdistr(na.omit(data_rs$DM_t), "normal")$estimate
-ks.test(na.omit(data_rs$DM_t), pnorm, mean = fits_rs[1], sd = fits_rs[2])
+# Get distribution of CA rosette sizes; is normally distributed
+fits_rs_CA <- fitdistr(na.omit(subset(data_rs, Species == "CA")$DM_t), "normal")$estimate
+ks.test(na.omit(subset(data_rs, Species == "CA")$DM_t),
+        pnorm, mean = fits_rs_CA[1], sd = fits_rs_CA[2])
+
+# Get distribution of CN rosette sizes; is normally distributed
+fits_rs_CN <- fitdistr(na.omit(subset(data_rs, Species == "CN")$DM_t), "normal")$estimate
+ks.test(na.omit(subset(data_rs, Species == "CN")$DM_t),
+        pnorm, mean = fits_rs_CN[1], sd = fits_rs_CN[2])
 
 
 
@@ -129,7 +135,13 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   
   # Initial rosette size from seed
   if(dType == "rsize"){
-    return(rtruncnorm(n, a = min(na.omit(data_rs$DM_t)), mean = fits_rs[1], sd = fits_rs[2]))}
+    if(species == "CA"){
+      ros <- rtruncnorm(n, a = min(na.omit(data_rs$DM_t)),
+                        mean = fits_rs_CA[1], sd = fits_rs_CA[2])}
+    if(species == "CN"){
+      ros <- rtruncnorm(n, a = min(na.omit(data_rs$DM_t)),
+                        mean = fits_rs_CN[1], sd = fits_rs_CN[2])}
+    return(ros)}
   
   # Flowering probability as function of rosette size
   if(dType == "flowering"){
