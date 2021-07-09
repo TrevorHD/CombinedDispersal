@@ -40,15 +40,21 @@ ws_values <- ws_values[ws_values > 0]
 ws_pdf <- density(ws_values, from = min(ws_values), to = max(ws_values), bw = 0.05)
 ws_mean <- mean(ws_values)
 
-# Create PDF of wind speeds
-# Terminal velocity is drop tube length divided by drop time
-tv_values <- na.omit(1.25/data_tv$DT.Avg)
-tv_pdf <- density(tv_values, from = min(tv_values), to = max(tv_values), bw = 0.05)
-tv_mean <- mean(tv_values)
+# Create PDF of CN wind speeds
+# Terminal velocity is drop tube length (1.25 m) divided by drop time
+tv_values_CN <- na.omit(1.25/subset(data_tv, species == "n")$drop.time)
+tv_pdf_CN <- density(tv_values_CN, from = min(tv_values_CN), to = max(tv_values_CN), bw = 0.05)
+tv_mean_CN <- mean(tv_values_CN)
+
+# Create PDF of CN wind speeds
+# Terminal velocity is drop tube length (1.25 m) divided by drop time
+tv_values_CA <- na.omit(1.25/subset(data_tv, species == "a")$drop.time)
+tv_pdf_CA <- density(tv_values_CA, from = min(tv_values_CA), to = max(tv_values_CA), bw = 0.05)
+tv_mean_CA <- mean(tv_values_CA)
 
 # Function generating a dispersal kernel using WALD model (Katul et al. 2005)
 # Code adapted from Skarpaas and Shea (2007)
-WALD.b <- function(n, H){
+WALD.b <- function(n, H, species){
   
   # Initialise physical constants
   K <- 0.4      # von Karman constant
@@ -68,7 +74,10 @@ WALD.b <- function(n, H){
   Um <- rnorm(n, sample(ws_values, size = n, replace = TRUE), ws_pdf$bw)
   
   # Simulate terminal velocities from empirical distribution of terminal velocities
-  f <- rnorm(n, sample(tv_values, size = n, replace = TRUE), tv_pdf$bw)
+  if(species == "CN"){
+    f <- rnorm(n, sample(tv_values_CN, size = n, replace = TRUE), tv_pdf_CN$bw)}
+  if(species == "CA"){
+    f <- rnorm(n, sample(tv_values_CA, size = n, replace = TRUE), tv_pdf_CA$bw)}
   
   # Calculate ustar, the friction velocity
   ustar <- K*Um*(log((zm - d)/z0))^(-1)
@@ -101,13 +110,22 @@ WALD.b <- function(n, H){
 ##### Set up demography framework -------------------------------------------------------------------------
 
 # Demography function for growth, survival, and reproduction
-demo <- function(dType, n = 0, rsize = 0, nflow = 0){
+demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
+  
+  # Fix static parameters
+  seedsCA <- 83
+  seedsCN <- 160
+  estCA <- 0.136
+  estCN <- 0.147
+  sPred <- 0.95
   
   # Production of seeds, seed survival, and seed establishment
   if(dType == "seeds"){
-    nSeed <- 374
-    pPred <- 0.99
-    return(round((nSeed - nSeed*pPred)*nflow))}
+    if(species == "CA"){
+      seeds <- seedsCA*nflow*(1 - sPred)*estCA}
+    if(species == "CN"){
+      seeds <- seedsCN*nflow*(1 - sPred)*estCN}
+    return(round(seeds))}
   
   # Initial rosette size from seed
   if(dType == "rsize"){
@@ -149,8 +167,8 @@ nestsearch <- function(d, range){
   ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
 
 # Estimate dispersal distances from given point; assume 1m plant height  
-kern <- function(n, h, d0 = 0){
-  d <- WALD.b(n, h) + d0
+kern <- function(n, h, species, d0 = 0){
+  d <- WALD.b(n, h, species) + d0
   return(d)}
 
 # Generate nests; density d = 0.1 nests/m
@@ -160,6 +178,7 @@ nests <- sample(seq(0, 5000, by = 0.1), 0.1*5000) + 0.01
 plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", n = 1), h = 0, flow = 0, nflow = 0)
 seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
+species <- "CN"
 vals <- c()
 
 # Set various parameters for wave model
@@ -175,7 +194,7 @@ for(i in 1:100){
   
   # Surviving seeds become rosettes
   seeds$stage <- rep(0, nrow(seeds))
-  seeds$rsize <- demo("rsize", n = nrow(seeds))
+  seeds$rsize <- demo("rsize", species, n = nrow(seeds))
   seeds$h <- rep(0, nrow(seeds))
   seeds$flow<- rep(0, nrow(seeds))
   seeds$nflow <- rep(0, nrow(seeds))
@@ -205,7 +224,7 @@ for(i in 1:100){
   
   # Remove rosettes that do not survive
   if(nrow(plants) > 0){
-    plants <- plants[demo("survival", rsize = plants$rsize) == 1, ]}
+    plants <- plants[demo("survival", species, rsize = plants$rsize) == 1, ]}
   
   # Trim core areas as wave progresses to save computational resources
   if(trim == TRUE & nrow(plants) > 0){
@@ -218,17 +237,17 @@ for(i in 1:100){
                                             prob = c(0.5, 0.5), replace = TRUE)
   
   # Simulate growth and flowering for adults
-  plants$h[plants$stage == 2] <- demo("growth", rsize = plants$rsize[plants$stage == 2])
+  plants$h[plants$stage == 2] <- demo("growth", species, rsize = plants$rsize[plants$stage == 2])
   if(sum(plants$stage == 2) > 0){
-    plants$flow[plants$stage == 2] <- demo("flowering", rsize = plants[plants$stage == 2, ]$rsize)}
-  plants$nflow[plants$flow == 1] <- demo("flowers", rsize = plants$rsize[plants$flow == 1])
+    plants$flow[plants$stage == 2] <- demo("flowering", species, rsize = plants[plants$stage == 2, ]$rsize)}
+  plants$nflow[plants$flow == 1] <- demo("flowers", species, rsize = plants$rsize[plants$flow == 1])
   
   # For flowering adults, simulate primary seed dispersal via wind
   # Also simulate seed survival and establishment
   for(j in 1:nrow(plants)){
     if(plants$flow[j] == 1){
-      n <- demo("seeds", nflow = plants$nflow[j])
-      newSeeds <- data.frame(kern(n, plants$h[j], plants$d[j]))
+      n <- demo("seeds", species, nflow = plants$nflow[j])
+      newSeeds <- data.frame(kern(n, plants$h[j], species, plants$d[j]))
       newSeeds <- cbind(newSeeds, rep(1, n))
       names(newSeeds) <- c("d", "germ")
       newSeeds <- newSeeds[newSeeds$germ == 1, ]
