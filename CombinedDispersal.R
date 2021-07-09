@@ -14,8 +14,8 @@ data_ws2 <- read.csv("Data/Weather2.csv")
 
 # Load in terminal velocity data
 # Use ambient TVs since we're only examining warming effects on height distribution
-data_tv <- read.csv("Data/SeedDropData.csv")
-data_tv <- subset(data_tv, Warming == "A" & Mow == "CTL")
+data_tv <- read.delim("Data/SeedDropData2.txt")
+data_tv <- subset(data_tv, !is.na(drop.time))
 
 # Load height data as xlsx
 data_ht <- read.xlsx("Data/ThistleData.xlsx", sheetName = "Flowers")
