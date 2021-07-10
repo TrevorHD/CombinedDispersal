@@ -7,6 +7,8 @@ library(tidyverse)
 library(truncnorm)
 library(xlsx)
 library(gifski)
+library(lme4)
+library(lmerTest)
 
 # Load in raw weather data
 data_ws1 <- read.csv("Data/Weather1.csv")
@@ -22,6 +24,12 @@ data_ht <- read.xlsx("Data/ThistleData.xlsx", sheetName = "Flowers")
 
 # Load rosette as xlsx
 data_rs <- read.xlsx("Data/ThistleData.xlsx", sheetName = "General")
+
+# Add survival indicator for rosettes that survived from transplant to summer
+data_rs$Survival <- NA
+data_rs$Survival[!is.na(data_rs$DM_t) & !is.na(data_rs$F)] <- 1
+data_rs$Survival[!is.na(data_rs$DM_t) & is.na(data_rs$F)] <- 0
+data_rs$Survival[372] <- NA
 
 # Get distribution of CA rosette sizes; is normally distributed
 fits_rs_CA <- fitdistr(na.omit(subset(data_rs, Species == "CA")$DM_t), "normal")$estimate
@@ -113,6 +121,25 @@ WALD.b <- function(n, H, species){
 
 
 
+##### Get equations for survival --------------------------------------------------------------------------
+
+# Model survival rates as function of rosette size
+# Difficulty fitting models, singularity issues due to too few deaths
+glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
+      data = subset(data_rs, Species == "CA" & !is.na(Survival)))
+glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
+      data = subset(data_rs, Species == "CN" & !is.na(Survival)))
+
+# Thus, rates will be estimated independent of rosette size (i.e. as a constant)
+surv_rs_CA <- nrow(subset(data_rs, Species == "CA" & Survival == 1))/
+  nrow(subset(data_rs, Species == "CA" & !is.na(Survival)))
+surv_rs_CN <- nrow(subset(data_rs, Species == "CN" & Survival == 1))/
+  nrow(subset(data_rs, Species == "CN" & !is.na(Survival)))
+
+
+
+
+
 ##### Set up demography framework -------------------------------------------------------------------------
 
 # Demography function for growth, survival, and reproduction
@@ -156,9 +183,11 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   
   # Rosette survival as function of rosette size
   if(dType == "survival"){
-    prob <- 0.95 + rsize/1000
-    outcomes <- apply(X = cbind(prob, 1 - prob), MARGIN = 1, FUN = sample,
-                      x = c(1, 0), size = 1, replace = FALSE)
+    if(species == "CA"){
+      prob <- surv_rs_CA}
+    if(species == "CN"){
+      prob <- surv_rs_CN}
+    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
     return(outcomes)}
   
   # Height as function of rosette size
@@ -201,7 +230,7 @@ range <- 5        # Max detection range (m) from ant nests
 trim <- TRUE      # Should core area of wave be trimmed?
 trimAmt <- 500    # Distance (m) behind wavefront to trim
 tDens <- 10       # Max thistle density per metre
-plotOn <- TRUE    # Plot wave?
+plotOn <- FALSE   # Plot wave?
 
 # Run invasion wave simulation
 for(i in 1:100){
@@ -239,7 +268,7 @@ for(i in 1:100){
   
   # Remove rosettes that do not survive
   if(nrow(plants) > 0){
-    plants <- plants[demo("survival", species, rsize = plants$rsize) == 1, ]}
+    plants <- plants[demo("survival", species, n = nrow(plants)) == 1, ]}
   
   # Trim core areas as wave progresses to save computational resources
   if(trim == TRUE & nrow(plants) > 0){
