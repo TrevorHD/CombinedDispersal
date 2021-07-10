@@ -186,11 +186,13 @@ kern <- function(n, h, species, d0 = 0){
 # Generate nests; density d = 0.1 nests/m
 nests <- sample(seq(0, 5000, by = 0.1), 0.1*5000) + 0.01
 
+# Choose species to model
+species <- "CN"
+
 # Initialise data; start with a single rosette
-plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", n = 1), h = 0, flow = 0, nflow = 0)
+plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, n = 1), h = 0, flow = 0, nflow = 0)
 seeds <- data.frame(matrix(ncol = 2, nrow = 0))
 colnames(seeds) <- c("d", "germ")
-species <- "CN"
 vals <- c()
 
 # Set various parameters for wave model
@@ -215,13 +217,14 @@ for(i in 1:100){
   
   # Kill rosettes if density is too high
   # Do this by sorting so that adults come first and are prioritised
-  plants %>% 
-    mutate(bin = as.integer(cut(d, breaks = seq(0, ceiling(max(plants$d)), 1)))) %>% 
-    arrange(bin, desc(stage)) %>% 
-    group_by(bin) %>%
-    slice(1:pmin(tDens, n())) %>% 
-    data.frame() -> plants
-  plants <- plants[, !names(plants) == c("bin")]
+  if(nrow(plants) > 0){
+    plants %>% 
+      mutate(bin = as.integer(cut(d, breaks = seq(0, ceiling(max(plants$d)), 1)))) %>% 
+      arrange(bin, desc(stage)) %>% 
+      group_by(bin) %>%
+      slice(1:pmin(tDens, n())) %>% 
+      data.frame() -> plants
+    plants <- plants[, !names(plants) == c("bin")]}
   
   # Reset seeds
   # Can change this later to account for seed bank
