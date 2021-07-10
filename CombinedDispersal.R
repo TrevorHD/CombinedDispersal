@@ -29,6 +29,8 @@ data_rs <- read.xlsx("Data/ThistleData.xlsx", sheetName = "General")
 data_rs$Survival <- NA
 data_rs$Survival[!is.na(data_rs$DM_t) & !is.na(data_rs$F)] <- 1
 data_rs$Survival[!is.na(data_rs$DM_t) & is.na(data_rs$F)] <- 0
+
+# List survival for 372 as NA since the plant was accidentally killed while cutting
 data_rs$Survival[372] <- NA
 
 # Get distribution of CA rosette sizes; is normally distributed
@@ -121,33 +123,33 @@ WALD.b <- function(n, H, species){
 
 
 
-##### Get equations for survival --------------------------------------------------------------------------
+##### Get equations for survival and flowering ------------------------------------------------------------
 
 # Model survival rates as function of rosette size
 # Too few deaths to fit a reliable model
 glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, Species == "CA" & !is.na(Survival)))
+      data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival)))
 glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, Species == "CN" & !is.na(Survival)))
+      data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival)))
 
 # Thus, rates will be estimated independent of rosette size (i.e. as a constant)
-surv_rs_CA <- nrow(subset(data_rs, Species == "CA" & Survival == 1))/
-  nrow(subset(data_rs, Species == "CA" & !is.na(Survival)))
-surv_rs_CN <- nrow(subset(data_rs, Species == "CN" & Survival == 1))/
-  nrow(subset(data_rs, Species == "CN" & !is.na(Survival)))
+surv_rs_CA <- nrow(subset(data_rs, Species == "CA" & TRT == "NW" & Survival == 1))/
+  nrow(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival)))
+surv_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & Survival == 1))/
+  nrow(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival)))
 
 # Model survival rates as function of rosette size
 # Too few instances of not flwoering to fit a reliable model
 glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, Species == "CA" & !is.na(F)))
+      data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F)))
 glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, Species == "CN" & !is.na(F)))
+      data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F)))
 
 # Thus, rates will be estimated independent of rosette size (i.e. as a constant)
-flow_rs_CA <- nrow(subset(data_rs, Species == "CA" & F == 1))/
-  nrow(subset(data_rs, Species == "CA" & !is.na(F)))
-flow_rs_CN <- nrow(subset(data_rs, Species == "CN" & F == 1))/
-  nrow(subset(data_rs, Species == "CN" & !is.na(F)))
+flow_rs_CA <- nrow(subset(data_rs, Species == "CA" & TRT == "NW" & F == 1))/
+  nrow(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F)))
+flow_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & F == 1))/
+  nrow(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F)))
 
 
 
