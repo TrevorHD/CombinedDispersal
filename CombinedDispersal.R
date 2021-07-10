@@ -124,7 +124,7 @@ WALD.b <- function(n, H, species){
 ##### Get equations for survival --------------------------------------------------------------------------
 
 # Model survival rates as function of rosette size
-# Difficulty fitting models, singularity issues due to too few deaths
+# Too few deaths to fit a reliable model
 glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
       data = subset(data_rs, Species == "CA" & !is.na(Survival)))
 glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
@@ -135,6 +135,19 @@ surv_rs_CA <- nrow(subset(data_rs, Species == "CA" & Survival == 1))/
   nrow(subset(data_rs, Species == "CA" & !is.na(Survival)))
 surv_rs_CN <- nrow(subset(data_rs, Species == "CN" & Survival == 1))/
   nrow(subset(data_rs, Species == "CN" & !is.na(Survival)))
+
+# Model survival rates as function of rosette size
+# Too few instances of not flwoering to fit a reliable model
+glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
+      data = subset(data_rs, Species == "CA" & !is.na(F)))
+glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
+      data = subset(data_rs, Species == "CN" & !is.na(F)))
+
+# Thus, rates will be estimated independent of rosette size (i.e. as a constant)
+flow_rs_CA <- nrow(subset(data_rs, Species == "CA" & F == 1))/
+  nrow(subset(data_rs, Species == "CA" & !is.na(F)))
+flow_rs_CN <- nrow(subset(data_rs, Species == "CN" & F == 1))/
+  nrow(subset(data_rs, Species == "CN" & !is.na(F)))
 
 
 
@@ -172,9 +185,11 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   
   # Flowering probability as function of rosette size
   if(dType == "flowering"){
-    prob <- 0.95 + rsize/1000
-    outcomes <- apply(X = cbind(prob, 1 - prob), MARGIN = 1, FUN = sample,
-                      x = c(1, 0), size = 1, replace = FALSE)
+    if(species == "CA"){
+      prob <- flow_rs_CA}
+    if(species == "CN"){
+      prob <- flow_rs_CN}
+    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
     return(outcomes)}
   
   # Flower production as function of rosette size
@@ -288,7 +303,7 @@ for(i in 1:100){
   # Simulate growth and flowering for adults
   plants$h[plants$stage == 2] <- demo("growth", species, rsize = plants$rsize[plants$stage == 2])
   if(sum(plants$stage == 2) > 0){
-    plants$flow[plants$stage == 2] <- demo("flowering", species, rsize = plants[plants$stage == 2, ]$rsize)}
+    plants$flow[plants$stage == 2] <- demo("flowering", species, n = length(plants$flow[plants$stage == 2]))}
   plants$nflow[plants$flow == 1] <- demo("flowers", species, rsize = plants$rsize[plants$flow == 1])
   
   # For flowering adults, simulate primary seed dispersal via wind
