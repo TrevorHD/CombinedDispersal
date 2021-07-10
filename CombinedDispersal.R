@@ -33,6 +33,17 @@ data_rs$Survival[!is.na(data_rs$DM_t) & is.na(data_rs$F)] <- 0
 # List survival for 372 as NA since the plant was accidentally killed while cutting
 data_rs$Survival[372] <- NA
 
+# Get number of flowers per plant
+data_ht %>% 
+  subset(Type == "f" | Type == "s") %>% 
+  group_by(Row, Group, Plant, TRT) %>% 
+  summarise(Heads = n()) %>% 
+  data.frame() -> heights
+data_rs <- merge(data_rs, test, by = c("Row", "Group", "Plant"), all = TRUE)
+data_rs <- subset(data_rs, !is.na(Species), select = -c(TRT.y))
+names(data_rs)[5] <- "TRT"
+remove(heights)
+
 # Get distribution of CA rosette sizes; is normally distributed
 fits_rs_CA <- fitdistr(na.omit(subset(data_rs, Species == "CA")$DM_t), "normal")$estimate
 ks.test(na.omit(subset(data_rs, Species == "CA")$DM_t),
@@ -155,6 +166,32 @@ flow_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & F == 1))/
 
 
 
+##### Get equations for number of flower heads ------------------------------------------------------------
+
+# Model CN number of flower heads as a function of rosette size
+# Use AIC to make stepwise simplifications
+mod_head_CN <- lmer(Heads ~ DM_t + (1|Row/Group),
+                    data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
+step(mod_head_CN)
+mod_head_CN <- lmer(Heads ~ DM_t + (1|Group:Row),
+                    data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
+summary(mod_head_CN)
+mod_head_CN <- fixef(mod_head_CN)
+
+# Model CA number of flower heads as a function of rosette size
+# Use AIC to make stepwise simplifications
+mod_head_CA <- lmer(Heads ~ DM_t + (1|Row/Group),
+                    data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
+step(mod_head_CA)
+mod_head_CA <- lmer(Heads ~ (1|Group:Row),
+                    data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
+summary(mod_head_CA)
+mod_head_CA <- fixef(mod_head_CA)
+
+
+
+
+
 ##### Set up demography framework -------------------------------------------------------------------------
 
 # Demography function for growth, survival, and reproduction
@@ -196,7 +233,11 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   
   # Flower production as function of rosette size
   if(dType == "flowers"){
-    return(6 + round(rsize/100*50))}
+    if(species == "CA"){
+      head <- mod_head_CA}
+    if(species == "CN"){
+      head <- mod_head_CN[1] + mod_head_CN[2]*rsize}
+    return(head)}
   
   # Rosette survival as function of rosette size
   if(dType == "survival"){
