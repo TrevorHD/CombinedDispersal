@@ -212,21 +212,13 @@ kern <- function(n, h, species, d0 = 0){
   d <- WALD.b(n, h, species) + d0
   return(d)}
 
-# Generate nests; density d = 0.1 nests/m
-nests <- sample(seq(0, 5000, by = 0.1), 0.1*5000) + 0.01
-
 # Choose species to model
 species <- "CN"
-
-# Initialise data; start with a single rosette
-plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, n = 1), h = 0, flow = 0, nflow = 0)
-seeds <- data.frame(matrix(ncol = 2, nrow = 0))
-colnames(seeds) <- c("d", "germ")
-vals <- c()
 
 # Set various parameters for wave model
 nestOn <- TRUE    # Should ant nests be included
 range <- 5        # Max detection range (m) from ant nests
+nDens <- 0.1      # Ant nest density (nests/m)
 trim <- TRUE      # Should core area of wave be trimmed?
 trimAmt <- 500    # Distance (m) behind wavefront to trim
 tDens <- 10       # Max thistle density per metre
@@ -234,6 +226,19 @@ plotOn <- FALSE   # Plot wave?
 
 # Run invasion wave simulation
 for(i in 1:100){
+  
+  # Initialise simulation data
+  if(i == 1){
+    
+    # Generate nests
+    nests <- sample(seq(0, 5000, by = 0.1), nDens*5000) + 0.01
+    
+    # Initialise data; start with a single rosette
+    plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, n = 1),
+                         h = 0, flow = 0, nflow = 0)
+    seeds <- data.frame(matrix(ncol = 2, nrow = 0))
+    colnames(seeds) <- c("d", "germ")
+    vals <- c()}
   
   # Surviving seeds become rosettes
   seeds$stage <- rep(0, nrow(seeds))
