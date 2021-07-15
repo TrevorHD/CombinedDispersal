@@ -38,11 +38,17 @@ data_ht %>%
   subset(Type == "f" | Type == "s") %>% 
   group_by(Row, Group, Plant, TRT) %>% 
   summarise(Heads = n()) %>% 
-  data.frame() -> heights
-data_rs <- merge(data_rs, test, by = c("Row", "Group", "Plant"), all = TRUE)
+  data.frame() -> heads
+data_rs <- merge(data_rs, heads, by = c("Row", "Group", "Plant"), all = TRUE)
 data_rs <- subset(data_rs, !is.na(Species), select = -c(TRT.y))
 names(data_rs)[5] <- "TRT"
-remove(heights)
+remove(heads)
+
+
+
+
+
+##### Get mean and DS for initial rosette size distributions ----------------------------------------------
 
 # Get distribution of CA rosette sizes; is normally distributed
 fits_rs_CA <- fitdistr(na.omit(subset(data_rs, Species == "CA")$DM_t), "normal")$estimate
@@ -53,6 +59,98 @@ ks.test(na.omit(subset(data_rs, Species == "CA")$DM_t),
 fits_rs_CN <- fitdistr(na.omit(subset(data_rs, Species == "CN")$DM_t), "normal")$estimate
 ks.test(na.omit(subset(data_rs, Species == "CN")$DM_t),
         pnorm, mean = fits_rs_CN[1], sd = fits_rs_CN[2])
+
+
+
+
+
+##### Get mean and DS for flower height distributions -----------------------------------------------------
+
+# Create vector of CN and CA flower heights for each treatment group
+ht_CN_NW <- subset(data_ht, Species == "CN" & TRT == "NW")
+ht_CN_W <- subset(data_ht, Species == "CN" & TRT == "W")
+ht_CA_NW <- subset(data_ht, Species == "CA" & TRT == "NW")
+ht_CA_W <- subset(data_ht, Species == "CA" & TRT == "W")
+
+# Get distribution of CA flower heights
+fits_hd_CA_NW <- fitdistr(ht_CA_NW$Height, "normal")$estimate
+ks.test(ht_CA_NW$Height, pnorm, mean = fits_hd_CA_NW[1], sd = fits_hd_CA_NW[2])
+qqnorm(ht_CA_NW$Height)
+qqline(ht_CA_NW$Height)
+fits_hd_CA_W <- fitdistr(ht_CA_W$Height, "normal")$estimate
+ks.test(ht_CA_W$Height, pnorm, mean = fits_hd_CA_W[1], sd = fits_hd_CA_W[2])
+qqnorm(ht_CA_W$Height)
+qqline(ht_CA_W$Height)
+
+# Get distribution of CN flower heights
+fits_hd_CN_NW <- fitdistr(ht_CN_NW$Height, "normal")$estimate
+ks.test(ht_CN_NW$Height, pnorm, mean = fits_hd_CN_NW[1], sd = fits_hd_CN_NW[2])
+qqnorm(ht_CN_NW$Height)
+qqline(ht_CN_NW$Height)
+fits_hd_CN_W <- fitdistr(ht_CN_W$Height, "normal")$estimate
+ks.test(ht_CN_W$Height, pnorm, mean = fits_hd_CN_W[1], sd = fits_hd_CN_W[2])
+qqnorm(ht_CN_W$Height)
+qqline(ht_CN_W$Height)
+
+# Remove variables that are no longer needed
+remove(ht_CN_NW, ht_CN_W, ht_CA_NW, ht_CA_W)
+
+
+
+
+##### Get equations for survival and flowering ------------------------------------------------------------
+
+# Model survival rates as function of rosette size
+# Too few deaths to fit a reliable model
+glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
+      data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival)))
+glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
+      data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival)))
+
+# Thus, rates will be estimated independent of rosette size (i.e. as a constant)
+surv_rs_CA <- nrow(subset(data_rs, Species == "CA" & TRT == "NW" & Survival == 1))/
+  nrow(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival)))
+surv_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & Survival == 1))/
+  nrow(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival)))
+
+# Model flowering rates as function of rosette size
+# Too few instances of not flowering to fit a reliable model
+glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
+      data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F)))
+glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
+      data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F)))
+
+# Thus, rates will be estimated independent of rosette size (i.e. as a constant)
+flow_rs_CA <- nrow(subset(data_rs, Species == "CA" & TRT == "NW" & F == 1))/
+  nrow(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F)))
+flow_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & F == 1))/
+  nrow(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F)))
+
+
+
+
+
+##### Get equations for number of flower heads ------------------------------------------------------------
+
+# Model CN number of flower heads as a function of rosette size
+# Use AIC to make stepwise simplifications
+mod_head_CN <- lmer(Heads ~ DM_t + (1|Row/Group),
+                    data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
+step(mod_head_CN)
+mod_head_CN <- lmer(Heads ~ DM_t + (1|Group:Row),
+                    data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
+summary(mod_head_CN)
+mod_head_CN <- fixef(mod_head_CN)
+
+# Model CA number of flower heads as a function of rosette size
+# Use AIC to make stepwise simplifications
+mod_head_CA <- lmer(Heads ~ DM_t + (1|Row/Group),
+                    data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
+step(mod_head_CA)
+mod_head_CA <- lmer(Heads ~ (1|Group:Row),
+                    data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
+summary(mod_head_CA)
+mod_head_CA <- fixef(mod_head_CA)
 
 
 
@@ -129,64 +227,6 @@ WALD.b <- function(n, H, species){
   # Generate more than n to deal with NAs and then cut down to n
   dists <- as.numeric(na.omit(rinvGauss(n*1.25, nu = nu, lambda = lambda)))
   return(dists[1:n])}
-
-
-
-
-
-##### Get equations for survival and flowering ------------------------------------------------------------
-
-# Model survival rates as function of rosette size
-# Too few deaths to fit a reliable model
-glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival)))
-glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival)))
-
-# Thus, rates will be estimated independent of rosette size (i.e. as a constant)
-surv_rs_CA <- nrow(subset(data_rs, Species == "CA" & TRT == "NW" & Survival == 1))/
-  nrow(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival)))
-surv_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & Survival == 1))/
-  nrow(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival)))
-
-# Model survival rates as function of rosette size
-# Too few instances of not flwoering to fit a reliable model
-glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F)))
-glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F)))
-
-# Thus, rates will be estimated independent of rosette size (i.e. as a constant)
-flow_rs_CA <- nrow(subset(data_rs, Species == "CA" & TRT == "NW" & F == 1))/
-  nrow(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F)))
-flow_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & F == 1))/
-  nrow(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F)))
-
-
-
-
-
-##### Get equations for number of flower heads ------------------------------------------------------------
-
-# Model CN number of flower heads as a function of rosette size
-# Use AIC to make stepwise simplifications
-mod_head_CN <- lmer(Heads ~ DM_t + (1|Row/Group),
-                    data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
-step(mod_head_CN)
-mod_head_CN <- lmer(Heads ~ DM_t + (1|Group:Row),
-                    data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
-summary(mod_head_CN)
-mod_head_CN <- fixef(mod_head_CN)
-
-# Model CA number of flower heads as a function of rosette size
-# Use AIC to make stepwise simplifications
-mod_head_CA <- lmer(Heads ~ DM_t + (1|Row/Group),
-                    data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
-step(mod_head_CA)
-mod_head_CA <- lmer(Heads ~ (1|Group:Row),
-                    data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
-summary(mod_head_CA)
-mod_head_CA <- fixef(mod_head_CA)
 
 
 
