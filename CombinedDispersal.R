@@ -245,20 +245,47 @@ WALD.b <- function(n, H, species){
 # Demography function for growth, survival, and reproduction
 demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   
-  # Fix static parameters
-  seedsCA <- 83
-  seedsCN <- 160
-  estCA <- 0.136
-  estCN <- 0.147
-  sPred <- 0.95
+  # Set parameters
+  seedsCA <- 83       # Seeds per flower head (CA)
+  seedsCN <- 160      # Seeds per flower head (CN)
+  estCA <- 0.136      # Probability of establishment from seed (CA)
+  estCN <- 0.147      # Probability of establishment from seed (CN)
+  sPred <- 0.90       # Probability of seed predation
+  sbenter <- 0.233    # Probability of seed entering seed bank
+  sbest <- 0.233      # Probability of seed establishing from seed bank
+  sbsurv <- 0.260     # Probability of seed survival in seed bank
   
-  # Production of seeds, seed survival, and seed establishment
+  # Production of seeds and seed survival
   if(dType == "seeds"){
     if(species == "CA"){
-      nseed <- seedsCA*nflow*(1 - sPred)*estCA}
+      nseed <- seedsCA*nflow*(1 - sPred)}
     if(species == "CN"){
-      nseed <- seedsCN*nflow*(1 - sPred)*estCN}
+      nseed <- seedsCN*nflow*(1 - sPred)}
     return(round(nseed))}
+  
+  # Aboveground seed establishment
+  if(dType == "estAG"){
+    if(species == "CA"){
+      prob <- estCA}
+    if(species == "CN"){
+      prob <- estCN}
+    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
+    return(outcomes)}
+  
+  # Entry of seeds into seed bank
+  if(dType == "entSB"){
+    nseed <- seedsCA*nflow*(1 - sPred)*sbenter
+    return(round(nseed))}
+  
+  # Survival of seeds in seed bank
+  if(dType == "surSB"){
+    outcomes <- sample(c(1, 0), size = n, prob = c(sbsurv, 1 - sbsurv), replace = TRUE)
+    return(outcomes)}
+  
+  # Establishment of seeds from seed bank
+  if(dType == "estSB"){
+    outcomes <- sample(c(1, 0), size = n, prob = c(sbest, 1 - sbest), replace = TRUE)
+    return(outcomes)}
   
   # Initial rosette size from seed
   if(dType == "rsize"){
@@ -302,12 +329,7 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
       prob <- surv_rs_CA}
     if(species == "CN"){
       prob <- surv_rs_CN}
-    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
-    return(outcomes)}
-  
-  # Height as function of rosette size
-  if(dType == "growth"){
-    return(0.7 + rsize/75*2)}}
+    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)}
 
 
 
@@ -340,7 +362,7 @@ tDens <- 10       # Max thistle density per metre
 plotOn <- FALSE   # Plot wave?
 
 # Run invasion wave simulation
-for(i in 1:100){
+for(i in 1:500){
   
   # Initialise simulation data
   if(i == 1){
@@ -354,7 +376,7 @@ for(i in 1:100){
     colnames(seeds) <- c("d", "germ")
     vals <- c()}
   
-  # Surviving seeds become rosettes
+  # Surviving above-ground seeds become rosettes
   seeds$stage <- rep(0, nrow(seeds))
   seeds$rsize <- demo("rsize", species, n = nrow(seeds))
   seeds$h <- rep(0, nrow(seeds))
@@ -399,10 +421,8 @@ for(i in 1:100){
                                             prob = c(0.5, 0.5), replace = TRUE)
   
   # Simulate flowering for adults
-  #plants$h[plants$stage == 2] <- demo("growth", species, rsize = plants$rsize[plants$stage == 2])
   if(sum(plants$stage == 2) > 0){
     plants$flow[plants$stage == 2] <- demo("flowering", species, n = length(plants$flow[plants$stage == 2]))}
-  #plants$nflow[plants$flow == 1] <- demo("flowers", species, rsize = plants$rsize[plants$flow == 1])
   
   # For flowering adults, simulate primary seed dispersal via wind
   # Also simulate seed survival and establishment
