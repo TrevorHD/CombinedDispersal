@@ -195,38 +195,46 @@ WALD.b <- function(n, H, species){
   # Let n be the number of simulation replications
   # Let H be the seed release height
   
-  # Simulate wind speeds from empirical distribution of wind speeds
-  Um <- rnorm(n, sample(ws_values, size = n, replace = TRUE), ws_pdf$bw)
+  # Simulate wind dispersal if released above canopy
+  if(H > h){
+    
+    # Simulate wind speeds from empirical distribution of wind speeds
+    Um <- rnorm(n, sample(ws_values, size = n, replace = TRUE), ws_pdf$bw)
   
-  # Simulate terminal velocities from empirical distribution of terminal velocities
-  if(species == "CN"){
-    f <- rnorm(n, sample(tv_values_CN, size = n, replace = TRUE), tv_pdf_CN$bw)}
-  if(species == "CA"){
-    f <- rnorm(n, sample(tv_values_CA, size = n, replace = TRUE), tv_pdf_CA$bw)}
+    # Simulate terminal velocities from empirical distribution of terminal velocities
+    if(species == "CN"){
+      f <- rnorm(n, sample(tv_values_CN, size = n, replace = TRUE), tv_pdf_CN$bw)}
+    if(species == "CA"){
+      f <- rnorm(n, sample(tv_values_CA, size = n, replace = TRUE), tv_pdf_CA$bw)}
   
-  # Calculate ustar, the friction velocity
-  ustar <- K*Um*(log((zm - d)/z0))^(-1)
+    # Calculate ustar, the friction velocity
+    ustar <- K*Um*(log((zm - d)/z0))^(-1)
   
-  # Set up integrand for wind speed between vegetation surface and drop height H
-  integrand <- function(z){
-    (1/K)*(log((z - d)/z0))}
+    # Set up integrand for wind speed between vegetation surface and drop height H
+    integrand <- function(z){
+      (1/K)*(log((z - d)/z0))}
   
-  # Integrate to obtain U
-  U <- (ustar/H)*integrate(integrand, lower = d + z0, upper = H)$value
+    # Integrate to obtain U
+    U <- (ustar/H)*integrate(integrand, lower = d + z0, upper = H)$value
   
-  # Calculate instability parameter
-  sigma <- 2*(Aw^2)*sqrt((K*(H - d)*ustar)/(C0*U))
+    # Calculate instability parameter
+    sigma <- 2*(Aw^2)*sqrt((K*(H - d)*ustar)/(C0*U))
   
-  # Calculate scale parameter lambda
-  lambda <- (H/sigma)^2
+    # Calculate scale parameter lambda
+    lambda <- (H/sigma)^2
   
-  # Calculate location parameter nu
-  nu <- H*U/f
+    # Calculate location parameter nu
+    nu <- H*U/f
   
-  # Generate inverse Gaussian distribution
-  # Generate more than n to deal with NAs and then cut down to n
-  dists <- as.numeric(na.omit(rinvGauss(n*1.25, nu = nu, lambda = lambda)))
-  return(dists[1:n])}
+    # Generate inverse Gaussian distribution
+    # Generate more than n to deal with NAs and then cut down to n
+    nInc <- ifelse(n == 1, 3, 2)
+    dists <- as.numeric(na.omit(rinvGauss(n*nInc, nu = nu, lambda = lambda)))
+    return(dists[1:n])}
+  
+  # No dispersal if released below canopy
+  if(H <= h){
+    return(rep(0, n))}}
 
 
 
@@ -247,10 +255,10 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   # Production of seeds, seed survival, and seed establishment
   if(dType == "seeds"){
     if(species == "CA"){
-      seeds <- seedsCA*nflow*(1 - sPred)*estCA}
+      nseed <- seedsCA*nflow*(1 - sPred)*estCA}
     if(species == "CN"){
-      seeds <- seedsCN*nflow*(1 - sPred)*estCN}
-    return(round(seeds))}
+      nseed <- seedsCN*nflow*(1 - sPred)*estCN}
+    return(round(nseed))}
   
   # Initial rosette size from seed
   if(dType == "rsize"){
@@ -272,12 +280,21 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
     return(outcomes)}
   
   # Flower production as function of rosette size
+  # Round non-integers up to nearest head
   if(dType == "flowers"){
     if(species == "CA"){
       head <- mod_head_CA}
     if(species == "CN"){
       head <- mod_head_CN[1] + mod_head_CN[2]*rsize}
-    return(head)}
+    return(ceiling(head))}
+  
+  # Flower height
+  if(dType == "height"){
+    if(species == "CA"){
+      height <- rnorm(n, mean = fits_hd_CA_NW[1], sd = fits_hd_CA_NW[2])/100}
+    if(species == "CN"){
+      height <- rnorm(n, mean = fits_hd_CN_NW[1], sd = fits_hd_CN_NW[2])/100}
+    return(height)}
   
   # Rosette survival as function of rosette size
   if(dType == "survival"){
@@ -332,8 +349,7 @@ for(i in 1:100){
     nests <- sample(seq(0, 5000, by = 0.1), nDens*5000) + 0.01
     
     # Initialise data; start with a single rosette
-    plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, n = 1),
-                         h = 0, flow = 0, nflow = 0)
+    plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, n = 1), flow = 0)
     seeds <- data.frame(matrix(ncol = 2, nrow = 0))
     colnames(seeds) <- c("d", "germ")
     vals <- c()}
@@ -343,7 +359,6 @@ for(i in 1:100){
   seeds$rsize <- demo("rsize", species, n = nrow(seeds))
   seeds$h <- rep(0, nrow(seeds))
   seeds$flow<- rep(0, nrow(seeds))
-  seeds$nflow <- rep(0, nrow(seeds))
   seeds <- seeds[, !names(seeds) == c("germ")]
   plants <- rbind(plants, seeds)
   
@@ -383,19 +398,21 @@ for(i in 1:100){
   plants$stage[plants$stage == 0] <- sample(c(1, 2), size = length(plants$stage[plants$stage == 0]),
                                             prob = c(0.5, 0.5), replace = TRUE)
   
-  # Simulate growth and flowering for adults
-  plants$h[plants$stage == 2] <- demo("growth", species, rsize = plants$rsize[plants$stage == 2])
+  # Simulate flowering for adults
+  #plants$h[plants$stage == 2] <- demo("growth", species, rsize = plants$rsize[plants$stage == 2])
   if(sum(plants$stage == 2) > 0){
     plants$flow[plants$stage == 2] <- demo("flowering", species, n = length(plants$flow[plants$stage == 2]))}
-  plants$nflow[plants$flow == 1] <- demo("flowers", species, rsize = plants$rsize[plants$flow == 1])
+  #plants$nflow[plants$flow == 1] <- demo("flowers", species, rsize = plants$rsize[plants$flow == 1])
   
   # For flowering adults, simulate primary seed dispersal via wind
   # Also simulate seed survival and establishment
   for(j in 1:nrow(plants)){
     if(plants$flow[j] == 1){
-      n <- demo("seeds", species, nflow = plants$nflow[j])
-      newSeeds <- data.frame(kern(n, plants$h[j], species, plants$d[j]))
-      newSeeds <- cbind(newSeeds, rep(1, n))
+      nflow <- demo("flowers", species, rsize = plants$rsize[j])
+      nseeds <- demo("seeds", species, nflow = nflow)
+      fheights <- demo("height", species, n = nflow)[sample(1:nflow, size = nseeds, replace = TRUE)]
+      newSeeds <- data.frame(sapply(fheights, kern, n = 1, species = species, d0 = plants$d[j]))
+      newSeeds <- cbind(newSeeds, rep(1, nseeds))
       names(newSeeds) <- c("d", "germ")
       newSeeds <- newSeeds[newSeeds$germ == 1, ]
       seeds <- na.omit(rbind(seeds, newSeeds))}}
