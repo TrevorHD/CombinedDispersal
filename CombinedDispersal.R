@@ -274,8 +274,8 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   
   # Entry of seeds into seed bank
   if(dType == "entSB"){
-    nseed <- seedsCA*nflow*(1 - sPred)*sbenter
-    return(round(nseed))}
+    outcomes <- sample(c(1, 0), size = n, prob = c(sbenter, 1 - sbenter), replace = TRUE)
+    return(outcomes)}
   
   # Survival of seeds in seed bank
   if(dType == "surSB"){
@@ -329,7 +329,7 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
       prob <- surv_rs_CA}
     if(species == "CN"){
       prob <- surv_rs_CN}
-    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)}
+    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)}}
 
 
 
@@ -374,6 +374,8 @@ for(i in 1:500){
     plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, n = 1), flow = 0)
     seeds <- data.frame(matrix(ncol = 2, nrow = 0))
     colnames(seeds) <- c("d", "germ")
+    seedsSB <- data.frame(matrix(ncol = 2, nrow = 0))
+    colnames(seedsSB) <- c("d", "germ")
     vals <- c()}
   
   # Surviving above-ground seeds become rosettes
@@ -424,18 +426,38 @@ for(i in 1:500){
   if(sum(plants$stage == 2) > 0){
     plants$flow[plants$stage == 2] <- demo("flowering", species, n = length(plants$flow[plants$stage == 2]))}
   
+  # Survival and establishment of seeds already in seed bank
+  if(nrow(seedsSB) > 0){
+    seedsSB <- seedsSB[demo("surSB", species, n = nrow(seedsSB)) == 1, ]
+    if(nrow(seedsSB) > 0){
+      estvec <- demo("estSB", species, n = nrow(seedsSB))}
+    seeds <- na.omit(rbind(seeds, seedsSB[estvec == 1, ]))
+    seedsSB <- seedsSB[estvec == 0, ]}
+  
   # For flowering adults, simulate primary seed dispersal via wind
   # Also simulate seed survival and establishment
   for(j in 1:nrow(plants)){
     if(plants$flow[j] == 1){
+      
+      # Get seed fates before simulation to reduce computational load?
+      
+      # Simulate flowering, seed dispersal, and seed predation
       nflow <- demo("flowers", species, rsize = plants$rsize[j])
       nseeds <- demo("seeds", species, nflow = nflow)
       fheights <- demo("height", species, n = nflow)[sample(1:nflow, size = nseeds, replace = TRUE)]
       newSeeds <- data.frame(sapply(fheights, kern, n = 1, species = species, d0 = plants$d[j]))
-      newSeeds <- cbind(newSeeds, rep(1, nseeds))
+      
+      # Simulate aboveground establishment from dispersed seeds
+      newSeeds <- cbind(newSeeds, rep(0, nseeds))
       names(newSeeds) <- c("d", "germ")
-      newSeeds <- newSeeds[newSeeds$germ == 1, ]
-      seeds <- na.omit(rbind(seeds, newSeeds))}}
+      newSeeds$germ <- demo("estAG", species, n = nrow(newSeeds))
+      seeds <- na.omit(rbind(seeds, newSeeds[newSeeds$germ == 1, ]))
+      newSeeds <- newSeeds[newSeeds$germ == 0, ]
+      
+      # Entry of non-establishing seeds into seed bank
+      if(nrow(newSeeds) > 0){
+        newSeeds$germ <- demo("entSB", species, n = nrow(newSeeds))
+        seedsSB <- na.omit(rbind(seedsSB, newSeeds[newSeeds$germ == 1, ]))}}}
   
   # Simulate secondary seed dispersal via ants
   if(nestOn == TRUE){
