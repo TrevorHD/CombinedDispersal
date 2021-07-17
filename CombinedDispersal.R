@@ -64,7 +64,7 @@ ks.test(na.omit(subset(data_rs, Species == "CN")$DM_t),
 
 
 
-##### Get mean and DS for flower height distributions -----------------------------------------------------
+##### Get mean and SD for flower height distributions -----------------------------------------------------
 
 # Create vector of CN and CA flower heights for each treatment group
 ht_CN_NW <- subset(data_ht, Species == "CN" & TRT == "NW")
@@ -98,27 +98,46 @@ remove(ht_CN_NW, ht_CN_W, ht_CA_NW, ht_CA_W)
 
 
 
-##### Get equations for survival and flowering ------------------------------------------------------------
+
+##### Get equations for survival --------------------------------------------------------------------------
 
 # Model survival rates as function of rosette size
-# Too few deaths to fit a reliable model
 glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
       data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival)))
 glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
       data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival)))
 
-# Thus, rates will be estimated independent of rosette size (i.e. as a constant)
+# There are far too few deaths for logistic models to be reliable!
+# Logistic regression or MLE would likely lead to small-sample bias
+plot(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival))$DM_T,
+     subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival))$Survival)
+plot(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival))$DM_T,
+     subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival))$Survival)
+
+# Thus, rates will be simply be estimated as a constant
 surv_rs_CA <- nrow(subset(data_rs, Species == "CA" & TRT == "NW" & Survival == 1))/
   nrow(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival)))
 surv_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & Survival == 1))/
   nrow(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival)))
 
+
+
+
+
+##### Get equations for flowering -------------------------------------------------------------------------
+
 # Model flowering rates as function of rosette size
-# Too few instances of not flowering to fit a reliable model
 glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
       data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F)))
 glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
       data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F)))
+
+# There are far too few deaths for logistic models to be reliable!
+# Logistic regression or MLE would likely lead to small-sample bias
+plot(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F))$DM_t,
+     subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F))$F)
+plot(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F))$DM_t,
+     subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F))$F)
 
 # Thus, rates will be estimated independent of rosette size (i.e. as a constant)
 flow_rs_CA <- nrow(subset(data_rs, Species == "CA" & TRT == "NW" & F == 1))/
