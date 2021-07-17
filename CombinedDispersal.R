@@ -418,7 +418,7 @@ for(i in 1:nYear){
   # Trim core areas as wave progresses to save computational resources
   if(trim == TRUE & nrow(plants) > 0){
     plants <- plants[plants$d > max(plants$d) - trimAmt, ]
-    seedsSB <- seedsSB[seedsSB$d > max(seedsSB$d) - trimAmt, ]
+    seedsSB <- seedsSB[seedsSB$d > max(plants$d) - trimAmt, ]
     nests <- nests[nests > min(plants$d)]}
   
   # Some proportion of rosettes reach adulthood in one year
