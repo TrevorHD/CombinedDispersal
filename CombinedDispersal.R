@@ -242,20 +242,20 @@ WALD.b <- function(n, H, species){
 
 ##### Set up demography framework -------------------------------------------------------------------------
 
-# Demography function for growth, survival, and reproduction
+# Demography function for survival, reproduction, and more
 demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   
-  # Set parameters
+  # Set various seed production and establishment parameters
   seedsCA <- 83       # Seeds per flower head (CA)
   seedsCN <- 160      # Seeds per flower head (CN)
   estCA <- 0.136      # Probability of establishment from seed (CA)
   estCN <- 0.147      # Probability of establishment from seed (CN)
   sPred <- 0.90       # Probability of seed predation
-  sbenter <- 0.233    # Probability of seed entering seed bank
-  sbest <- 0.233      # Probability of seed establishing from seed bank
-  sbsurv <- 0.260     # Probability of seed survival in seed bank
+  sbEnt <- 0.233      # Probability of seed entering seed bank
+  sbEst <- 0.233      # Probability of seed establishing from seed bank
+  sbSur <- 0.260      # Probability of seed survival in seed bank
   
-  # Per-head production of seeds and seed survival
+  # Per-head production of seeds, and subsequent seed survival
   if(dType == "seeds"){
     if(species == "CA"){
       nseed <- seedsCA*(1 - sPred)}
@@ -263,7 +263,7 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
       nseed <- seedsCN*(1 - sPred)}
     return(round(nseed))}
   
-  # Aboveground seed establishment
+  # Establishment of seeds that do not enter the seed bank
   if(dType == "estAG"){
     if(species == "CA"){
       prob <- estCA}
@@ -272,22 +272,22 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
     outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
     return(outcomes)}
   
-  # Entry of seeds into seed bank
+  # Entry of seeds into the seed bank
   if(dType == "entSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(sbenter, 1 - sbenter), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(sbEnt, 1 - sbEnt), replace = TRUE)
     return(outcomes)}
   
-  # Survival of seeds in seed bank
+  # Survival of seeds in the seed bank
   if(dType == "surSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(sbsurv, 1 - sbsurv), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(sbSur, 1 - sbSur), replace = TRUE)
     return(outcomes)}
   
-  # Establishment of seeds from seed bank
+  # Establishment of seeds from the seed bank
   if(dType == "estSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(sbest, 1 - sbest), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(sbEst, 1 - sbEst), replace = TRUE)
     return(outcomes)}
   
-  # Initial rosette size from seed
+  # Initial rosette size upon establishment
   if(dType == "rsize"){
     if(species == "CA"){
       ros <- rtruncnorm(n, a = min(na.omit(data_rs$DM_t)),
@@ -297,7 +297,7 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
                         mean = fits_rs_CN[1], sd = fits_rs_CN[2])}
     return(ros)}
   
-  # Flowering probability as function of rosette size
+  # Flowering probability as function of initial rosette size
   if(dType == "flowering"){
     if(species == "CA"){
       prob <- flow_rs_CA}
@@ -306,8 +306,8 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
     outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
     return(outcomes)}
   
-  # Flower production as function of rosette size
-  # Round non-integers up to nearest head
+  # Flower production as function of initial rosette size
+  # Round any non-integers up to the nearest head
   if(dType == "flowers"){
     if(species == "CA"){
       head <- rep(mod_head_CA, length(rsize))}
@@ -315,7 +315,7 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
       head <- mod_head_CN[1] + mod_head_CN[2]*rsize}
     return(ceiling(head))}
   
-  # Flower height
+  # Distribution of flower heights for a given individual
   if(dType == "height"){
     if(species == "CA"){
       height <- rnorm(n, mean = fits_hd_CA_NW[1], sd = fits_hd_CA_NW[2])/100}
@@ -323,7 +323,7 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
       height <- rnorm(n, mean = fits_hd_CN_NW[1], sd = fits_hd_CN_NW[2])/100}
     return(height)}
   
-  # Rosette survival as function of rosette size
+  # Rosette survival as function of initial rosette size
   if(dType == "survival"){
     if(species == "CA"){
       prob <- surv_rs_CA}
@@ -359,31 +359,33 @@ nDens <- 0.1      # Ant nest density (nests/m)
 trim <- TRUE      # Should core area of wave be trimmed?
 trimAmt <- 500    # Distance (m) behind wavefront to trim
 tDens <- 10       # Max thistle density per metre
+nYear <- 100      # Number of years to simulate
+pAdult <- 0.5     # Proportion of rosettes that reach adulthood in 1 year
 plotOn <- FALSE   # Plot wave?
 
 # Run invasion wave simulation
-for(i in 1:300){
+for(i in 1:nYear){
   
   # Initialise simulation data
   if(i == 1){
     
     # Generate nests
-    nests <- sample(seq(0, 5000, by = 0.1), nDens*5000) + 0.01
+    nests <- sample(seq(0, nYear*70, by = 0.1), nDens*nYear*70) + 0.01
     
     # Initialise data; start with a single rosette
     plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, n = 1), flow = 0)
-    seeds <- data.frame(matrix(ncol = 2, nrow = 0))
-    colnames(seeds) <- c("d", "germ")
+    seedsAG <- data.frame(matrix(ncol = 2, nrow = 0))
+    colnames(seedsAG) <- c("d", "germ")
     seedsSB <- data.frame(matrix(ncol = 2, nrow = 0))
     colnames(seedsSB) <- c("d", "germ")
     vals <- c()}
   
   # Surviving above-ground seeds become rosettes
-  seeds$stage <- rep(0, nrow(seeds))
-  seeds$rsize <- demo("rsize", species, n = nrow(seeds))
-  seeds$flow <- rep(0, nrow(seeds))
-  seeds <- seeds[, !names(seeds) == c("germ")]
-  plants <- rbind(plants, seeds)
+  seedsAG$stage <- rep(0, nrow(seedsAG))
+  seedsAG$rsize <- demo("rsize", species, n = nrow(seedsAG))
+  seedsAG$flow <- rep(0, nrow(seedsAG))
+  seedsAG <- seedsAG[, !names(seedsAG) == c("germ")]
+  plants <- rbind(plants, seedsAG)
   
   # Kill rosettes if density is too high
   # Do this by sorting so that adults come first and are prioritised
@@ -396,11 +398,11 @@ for(i in 1:300){
       data.frame() -> plants
     plants <- plants[, !names(plants) == c("bin")]}
   
-  # Reset seeds
-  seeds <- data.frame(matrix(ncol = 2, nrow = 0))
-  colnames(seeds) <- c("d", "germ")
-  newSeeds <- data.frame(matrix(ncol = 2, nrow = 0))
-  colnames(newSeeds) <- c("d", "germ")
+  # Reset seeds (except for seed bank)
+  seedsAG <- data.frame(matrix(ncol = 2, nrow = 0))
+  colnames(seedsAG) <- c("d", "germ")
+  seedsNew <- data.frame(matrix(ncol = 2, nrow = 0))
+  colnames(seedsNew) <- c("d", "germ")
   
   # Plot density over space
   if(plotOn == TRUE){
@@ -409,20 +411,21 @@ for(i in 1:300){
     PlotList[[i]] <- plants$d}
   
   # Remove rosettes that do not survive
-  # Never kill when only one rosette so code doesn't crash
+  # Never kill when only one rosette; prevents code from crashing
   if(nrow(plants) > 1){
     plants <- plants[demo("survival", species, n = nrow(plants)) == 1, ]}
   
   # Trim core areas as wave progresses to save computational resources
   if(trim == TRUE & nrow(plants) > 0){
     plants <- plants[plants$d > max(plants$d) - trimAmt, ]
-    seedsSB <- seedsSB[seedsSB$d > max(seedsSB$d) - trimAmt, ]}
+    seedsSB <- seedsSB[seedsSB$d > max(seedsSB$d) - trimAmt, ]
+    nests <- nests[nests > min(plants$d)]}
   
   # Some proportion of rosettes reach adulthood in one year
   # Ones that don't will remain rosettes for another year before becoming adults
   plants$stage[plants$stage == 1] <- 2
   plants$stage[plants$stage == 0] <- sample(c(1, 2), size = length(plants$stage[plants$stage == 0]),
-                                            prob = c(0.5, 0.5), replace = TRUE)
+                                            prob = c(1 - pAdult, pAdult), replace = TRUE)
   
   # Simulate flowering for adults
   if(sum(plants$stage == 2) > 0){
@@ -432,40 +435,40 @@ for(i in 1:300){
   if(nrow(seedsSB) > 0){
     seedsSB <- seedsSB[demo("surSB", species, n = nrow(seedsSB)) == 1, ]
     if(nrow(seedsSB) > 0){
-      estvec <- demo("estSB", species, n = nrow(seedsSB))
-      temp2 <- seedsSB[estvec == 1, ]
-      temp2$stage <- rep(0, nrow(temp2))
-      temp2$rsize <- demo("rsize", species, n = nrow(temp2))
-      temp2$flow <- rep(0, nrow(temp2))
-      temp2 <- temp2[, !names(temp2) == c("germ")]}
-    plants <- na.omit(rbind(plants, temp2))
-    seedsSB <- seedsSB[estvec == 0, ]}
+      vec <- demo("estSB", species, n = nrow(seedsSB))
+      temp1 <- seedsSB[vec == 1, ]
+      temp1$stage <- rep(0, nrow(temp1))
+      temp1$rsize <- demo("rsize", species, n = nrow(temp1))
+      temp1$flow <- rep(0, nrow(temp1))
+      temp1 <- temp1[, !names(temp1) == c("germ")]}
+    plants <- na.omit(rbind(plants, temp1))
+    seedsSB <- seedsSB[vec == 0, ]}
   
   # Simulate dispersal from flowering adults
   if(sum(plants$stage == 2) > 0){
-    temp1 <- plants[plants$flow == 1, ]
-    nflow <- demo("flowers", species, rsize = temp1$rsize)
+    temp2 <- plants[plants$flow == 1, ]
+    nflow <- demo("flowers", species, rsize = temp2$rsize)
     f1 <- unlist(sapply(nflow, demo, dType = "height", species = species))
     s1 <- rep(demo("seeds", "CN"), times = sum(nflow))
-    d1 <- unlist(mapply(x = temp1$d, times = nflow, rep))
-    newSeeds <- as.vector(mapply(kern, n = s1, h = f1, d0 = d1, MoreArgs = list(species = species)))
-    newSeeds <- data.frame(cbind(newSeeds, rep(0, length(newSeeds))))
-    names(newSeeds) <- c("d", "germ")}
+    d1 <- unlist(mapply(x = temp2$d, times = nflow, rep))
+    seedsNew <- as.vector(mapply(kern, n = s1, h = f1, d0 = d1, MoreArgs = list(species = species)))
+    seedsNew <- data.frame(cbind(seedsNew, rep(0, length(seedsNew))))
+    names(seedsNew) <- c("d", "germ")}
   
   # Simulate aboveground establishment from dispersed seeds
-  newSeeds$germ <- demo("estAG", species, n = nrow(newSeeds))
-  seeds <- na.omit(rbind(seeds, newSeeds[newSeeds$germ == 1, ]))
-  newSeeds <- newSeeds[newSeeds$germ == 0, ]
+  seedsNew$germ <- demo("estAG", species, n = nrow(seedsNew))
+  seedsAG <- na.omit(rbind(seedsAG, seedsNew[seedsNew$germ == 1, ]))
+  seedsNew <- seedsNew[seedsNew$germ == 0, ]
   
   # Entry of non-establishing seeds into seed bank
-  if(nrow(newSeeds) > 0){
-    newSeeds$germ <- demo("entSB", species, n = nrow(newSeeds))
-    seedsSB <- na.omit(rbind(seedsSB, newSeeds[newSeeds$germ == 1, ]))
+  if(nrow(seedsNew) > 0){
+    seedsNew$germ <- demo("entSB", species, n = nrow(seedsNew))
+    seedsSB <- na.omit(rbind(seedsSB, seedsNew[seedsNew$germ == 1, ]))
     seedsSB$germ <- rep(0, nrow(seedsSB))}
   
   # Simulate secondary seed dispersal via ants
   if(nestOn == TRUE){
-    seeds$d <- sapply(seeds$d, nestsearch, range = range)}
+    seedsAG$d <- sapply(seedsAG$d, nestsearch, range = range)}
   
   # Store wavefront distance
   vals <- c(vals, max(plants$d))
@@ -476,7 +479,11 @@ for(i in 1:300){
 # Get mean wavespeed
 mean(diff(vals))
 
+# Remove temporary variables
+remove(temp1, temp2, vec, f1, s1, d1)
+
 # Generate GIF of population spread
+# Limit to 5000 m (nYear = 100 recommended)
 generatePlots <- function(type = "hist"){
   for(i in 1:length(PlotList)){
     lower <- c()
@@ -504,14 +511,6 @@ generatePlots <- function(type = "hist"){
       text(x = 4700, y = 1.15, paste0("t = ", i))}}}
 save_gif(generatePlots("hist"), "Spread1.gif", delay = 0.3, width = 1280, height = 720, res = 144)
 save_gif(generatePlots("density"), "Spread2.gif", delay = 0.3, width = 1280, height = 720, res = 144)
-
-# Extra code for 1-D nestsearch function
-centres <- nests[dists < range]
-dists <- dists[dists < range]
-if(length(dists) > 0){
-  probs <- abs(1 - ptruncnorm(dists, a = -range, b = range, mean = 0, sd = 4))*2
-  for(i in 1:length(probs)){
-    result <- sample(c(0, 1), 1, prob = c(probs[i], 1 - probs[i]))}}
 
 
 
