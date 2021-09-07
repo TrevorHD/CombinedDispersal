@@ -177,25 +177,71 @@ mod_head_CA <- fixef(mod_head_CA)
 
 ##### Set up dispersal framework --------------------------------------------------------------------------
 
-# Create PDF of wind speeds
+# Fit Weibull distribution to wind speeds
 # Assume no seed release occurs for wind speeds of zero, so remove zero values
+# Wind data is a bit messy, so KS is not significant; fit is still reasonable, though
 ws_values <- c(data_ws1$Wind1, data_ws2$Wind1)
 ws_values <- ws_values[ws_values > 0]
-ws_pdf <- density(ws_values, from = min(ws_values), to = max(ws_values), bw = 0.05)
-ws_mean <- mean(ws_values)
+ws_params <- fitdistr(ws_values, "weibull")$estimate
+ks.test(ws_values, pweibull, shape = ws_params[1], scale = ws_params[2])
+plot(density(ws_values))
+lines(density(rweibull(1000000, shape = ws_params[1], scale = ws_params[2])), col = "red")
 
-# Create PDF of CN wind speeds
+# Function to transform raw variance and/or mean, then output corresponding shape and scale
+transform.wb <- function(mean1, sd1, fv, which.trans){
+  
+  # Internal functions to calculate mean and SD of Weibull distribution
+  meanW <- function(scale, shape){
+    return(scale*gamma(1 + 1/shape))}
+  sdW <- function(scale, shape){
+    return(sqrt((scale^2)*(gamma(1 + 2/shape) - gamma(1 + 1/shape)^2)))}
+  
+  # Must brute force a solution since there is no easy function for inverse gamma
+  
+  # Create meshpoints for combinations of shape and scale
+  scale <- seq(0.1, 5, by = 0.005)
+  shape <- seq(0.1, 5, by = 0.005)
+  scale1 = rep(scale, each = length(shape))
+  shape1 = rep(shape, times = length(scale))
+  
+  # Let fv be the value that the mean and/or standard deviation is multiplied by
+  
+  # Conditional statements for the variable(s) to be transformed
+  if(which.trans == "mean"){
+    fm <- fv
+    fs <- 1}
+  if(which.trans == "sd"){
+    fm <- 1
+    fs <- fv}
+  if(which.trans == "both"){
+    fm <- fv
+    fs <- fv}
+  
+  # Transform variables
+  newMean = mean1*fm
+  newSD = sd1*fs
+  
+  # Evaluate mean and SD for at meshpoints
+  # Then calculate difference between estimated and supplied mean and SD
+  diffs1 <- abs((mapply(meanW, scale = scale1, shape = shape1) - newMean)/newMean)
+  diffs2 <- abs((mapply(sdW, scale = scale1, shape = shape1) - newSD)/newSD)
+  
+  # Find argmin by equally weighting mean and SD differences from supplied
+  argmin <- which.min((diffs1 + diffs2)/2)
+  
+  # Return shape and scale at argmin
+  return(c(shape1[argmin], scale1[argmin]))}
+
+# Fit lognormal distribution to terminal velocities
 # Terminal velocity is drop tube length (1.25 m) divided by drop time
-# Then test fit of lognormal distribution
 tv_values_CN <- na.omit(1.25/subset(data_tv, species == "n")$drop.time)
 tv_params_CN <- fitdistr(tv_values_CN, "lognormal")$estimate
 ks.test(tv_values_CN, plnorm, meanlog = tv_params_CN[1], sdlog = tv_params_CN[2])
 plot(density(tv_values_CN))
 lines(density(rlnorm(1000000, meanlog = tv_params_CN[1], sdlog = tv_params_CN[2])), col = "red")
 
-# Create PDF of CN wind speeds
+# Fit lognormal distribution to terminal velocities
 # Terminal velocity is drop tube length (1.25 m) divided by drop time
-# Then test fit of lognormal distribution
 tv_values_CA <- na.omit(1.25/subset(data_tv, species == "a")$drop.time)
 tv_params_CA <- fitdistr(tv_values_CA, "lognormal")$estimate
 ks.test(tv_values_CA, plnorm, meanlog = tv_params_CA[1], sdlog = tv_params_CA[2])
