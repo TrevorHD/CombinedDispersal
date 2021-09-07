@@ -30,7 +30,7 @@ data_rs$Survival <- NA
 data_rs$Survival[!is.na(data_rs$DM_t) & !is.na(data_rs$F)] <- 1
 data_rs$Survival[!is.na(data_rs$DM_t) & is.na(data_rs$F)] <- 0
 
-# List survival for 372 as NA since the plant was accidentally killed while cutting
+# List survival for 372 as NA since the plant was accidentally killed while trimming
 data_rs$Survival[372] <- NA
 
 # Get number of flowers per plant
@@ -186,15 +186,21 @@ ws_mean <- mean(ws_values)
 
 # Create PDF of CN wind speeds
 # Terminal velocity is drop tube length (1.25 m) divided by drop time
+# Then test fit of lognormal distribution
 tv_values_CN <- na.omit(1.25/subset(data_tv, species == "n")$drop.time)
-tv_pdf_CN <- density(tv_values_CN, from = min(tv_values_CN), to = max(tv_values_CN), bw = 0.05)
-tv_mean_CN <- mean(tv_values_CN)
+tv_params_CN <- fitdistr(tv_values_CN, "lognormal")$estimate
+ks.test(tv_values_CN, plnorm, meanlog = tv_params_CN[1], sdlog = tv_params_CN[2])
+plot(density(tv_values_CN))
+lines(density(rlnorm(1000000, meanlog = tv_params_CN[1], sdlog = tv_params_CN[2])), col = "red")
 
 # Create PDF of CN wind speeds
 # Terminal velocity is drop tube length (1.25 m) divided by drop time
+# Then test fit of lognormal distribution
 tv_values_CA <- na.omit(1.25/subset(data_tv, species == "a")$drop.time)
-tv_pdf_CA <- density(tv_values_CA, from = min(tv_values_CA), to = max(tv_values_CA), bw = 0.05)
-tv_mean_CA <- mean(tv_values_CA)
+tv_params_CA <- fitdistr(tv_values_CA, "lognormal")$estimate
+ks.test(tv_values_CA, plnorm, meanlog = tv_params_CA[1], sdlog = tv_params_CA[2])
+plot(density(tv_values_CA))
+lines(density(rlnorm(1000000, meanlog = tv_params_CA[1], sdlog = tv_params_CA[2])), col = "red")
 
 # Function generating a dispersal kernel using WALD model (Katul et al. 2005)
 # Code adapted from Skarpaas and Shea (2007)
@@ -220,11 +226,11 @@ WALD.b <- function(n, H, species){
     # Simulate wind speeds from empirical distribution of wind speeds
     Um <- rnorm(n, sample(ws_values, size = n, replace = TRUE), ws_pdf$bw)
   
-    # Simulate terminal velocities from empirical distribution of terminal velocities
+    # Simulate terminal velocities from lognormal distribution
     if(species == "CN"){
-      f <- rnorm(n, sample(tv_values_CN, size = n, replace = TRUE), tv_pdf_CN$bw)}
+      f <- rlnorm(n, tv_params_CN[1], tv_params_CN[2])}
     if(species == "CA"){
-      f <- rnorm(n, sample(tv_values_CA, size = n, replace = TRUE), tv_pdf_CA$bw)}
+      f <- rlnorm(n, tv_params_CA[1], tv_params_CA[2])}
   
     # Calculate ustar, the friction velocity
     ustar <- K*Um*(log((zm - d)/z0))^(-1)
