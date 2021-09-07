@@ -306,7 +306,7 @@ WALD.b <- function(n, H, species){
   if(H > h){
     
     # Simulate wind speeds from empirical distribution of wind speeds
-    Um <- rnorm(n, sample(ws_values, size = n, replace = TRUE), ws_pdf$bw)
+    Um <- rweibull(n, ws_params[1], ws_params[2])
   
     # Simulate terminal velocities from lognormal distribution
     if(species == "CN"){
@@ -477,7 +477,7 @@ for(i in 1:nYear){
   if(i == 1){
     
     # Generate nests
-    nests <- sample(seq(0, nYear*70, by = 0.1), nDens*nYear*70) + 0.01
+    nests <- sample(seq(0, nYear*100, by = 0.1), nDens*nYear*100) + 0.01
     
     # Initialise data; start with a single rosette
     plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, n = 1), flow = 0)
