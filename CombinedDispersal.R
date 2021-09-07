@@ -202,6 +202,42 @@ ks.test(tv_values_CA, plnorm, meanlog = tv_params_CA[1], sdlog = tv_params_CA[2]
 plot(density(tv_values_CA))
 lines(density(rlnorm(1000000, meanlog = tv_params_CA[1], sdlog = tv_params_CA[2])), col = "red")
 
+# Function to transform raw variance and/or mean, then output corresponding meanlog and sdlog
+transform.ln <- function(meanlog, sdlog, fv, which.trans){
+  
+  # Internal functions to convert between mean/meanlog and sd/sdlog
+  # Need to do this when transforming raw variance and/or mean
+  mean.to.meanlog <- function(mean, sd){
+    return(2*log(mean) - 0.5*log((mean^2) + (sd^2)))}
+  sd.to.sdlog <- function(mean, sd){
+    return(sqrt(-2*log(mean) + log((mean^2) + (sd^2))))}
+  meanlog.to.mean <- function(meanlog, sdlog){
+    return(exp(meanlog + 0.5*(sdlog^2)))}
+  sdlog.to.sd <- function(meanlog, sdlog){
+    return(sqrt(exp(2*meanlog + (sdlog^2))*(exp(sdlog^2) - 1)))}
+  
+  # Let fv be the value that the mean and/or standard deviation is multiplied by
+  
+  # Conditional statements for the variable(s) to be transformed
+  if(which.trans == "mean"){
+    fm <- fv
+    fs <- 1}
+  if(which.trans == "sd"){
+    fm <- 1
+    fs <- fv}
+  if(which.trans == "both"){
+    fm <- fv
+    fs <- fv}
+  
+  # Transform variables
+  newMean <- meanlog.to.mean(meanlog, sdlog)*fm
+  newSD <- sdlog.to.sd(meanlog, sdlog)*fs
+  newMeanlog <- mean.to.meanlog(newMean, newSD)
+  newSDlog <- sd.to.sdlog(newMean, newSD)
+  
+  # Output new meanlog and sdlog
+  return(c(newMeanlog, newSDlog))}
+
 # Function generating a dispersal kernel using WALD model (Katul et al. 2005)
 # Code adapted from Skarpaas and Shea (2007)
 WALD.b <- function(n, H, species){
