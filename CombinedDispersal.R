@@ -288,16 +288,28 @@ transform.ln <- function(meanlog, sdlog, fv, which.trans){
 # Code adapted from Skarpaas and Shea (2007)
 WALD.b <- function(n, H, species){
   
+  # Prepare vector to store scalable dispersal parameters
+  sParam <- c()
+  
+  # Set parameters for wind speed, seed terminal velocity, and vegetation height
+  sParam[1] <- 0.15                 # Vegetation heignt in m
+  sParam[2] <- ws_params[1]         # Mean wind speed, Weibull dist.
+  sParam[3] <- ws_params[2]         # SD wind speed, Weibull dist.
+  sParam[4] <- tv_params_CA[1]      # Mean terminal velocity, lognormal dist. (CA)
+  sParam[5] <- tv_params_CA[2]      # SD terminal velocity, lognormal dist. (CA)
+  sParam[6] <- tv_params_CN[1]      # Mean terminal velocity, lognormal dist. (CN)
+  sParam[7] <- tv_params_CN[2]      # SD terminal velocity, lognormal dist. (CN)
+
   # Initialise physical constants
-  K <- 0.4      # von Karman constant
-  C0 <- 3.125   # Kolmogorov constant
+  K <- 0.4          # von Karman constant
+  C0 <- 3.125       # Kolmogorov constant
   
   # Initialise other fixed quantities
-  Aw <- 1.3     # Ratio of sigmaw to ustar
-  h <- 0.15     # Grass cover height
-  d <- 0.7*h    # Zero-plane displacement
-  z0 <- 0.1*h   # Roughness length
-  zm <- 1       # Wind speed measurement height
+  Aw <- 1.3         # Ratio of sigmaw to ustar
+  h <- sParam[1]    # Grass cover height
+  d <- 0.7*h        # Zero-plane displacement
+  z0 <- 0.1*h       # Roughness length
+  zm <- 1           # Wind speed measurement height
   
   # Let n be the number of simulation replications
   # Let H be the seed release height
@@ -306,14 +318,14 @@ WALD.b <- function(n, H, species){
   if(H > h){
     
     # Simulate wind speeds from empirical distribution of wind speeds
-    Um <- rweibull(n, ws_params[1], ws_params[2])
+    Um <- rweibull(n, sParam[2], sParam[3])
   
     # Simulate terminal velocities from lognormal distribution
-    if(species == "CN"){
-      f <- rlnorm(n, tv_params_CN[1], tv_params_CN[2])}
     if(species == "CA"){
-      f <- rlnorm(n, tv_params_CA[1], tv_params_CA[2])}
-  
+      f <- rlnorm(n, sParam[4], sParam[5])}
+    if(species == "CN"){
+      f <- rlnorm(n, sParam[6], sParam[7])}
+    
     # Calculate ustar, the friction velocity
     ustar <- K*Um*(log((zm - d)/z0))^(-1)
   
