@@ -352,64 +352,95 @@ WALD.b <- function(n, H, species){
 # Demography function for survival, reproduction, and more
 demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   
-  # Set various seed production and establishment parameters
-  seedsCA <- 83       # Seeds per flower head (CA)
-  seedsCN <- 160      # Seeds per flower head (CN)
-  estCA <- 0.136      # Probability of establishment from seed (CA)
-  estCN <- 0.147      # Probability of establishment from seed (CN)
-  sPred <- 0.90       # Probability of seed predation
-  sbEnt <- 0.233      # Probability of seed entering seed bank
-  sbEst <- 0.233      # Probability of seed establishing from seed bank
-  sbSur <- 0.260      # Probability of seed survival in seed bank
+  # Prepare vector to store all demographic parameters
+  dParam <- c()
+  
+  # Parameters for seed production, survival, establishment, and seed bank dynamics
+  dParam[1] <- 83                   # Seeds per flower head (CA)
+  dParam[2] <- 160                  # Seeds per flower head (CN)
+  dParam[3] <- 0.136                # Prob. of establishment from seed (CA)
+  dParam[4] <- 0.147                # Prob. of establishment from seed (CN)
+  dParam[5] <- 0.90                 # Prob. of seed predation
+  dParam[6] <- 0.233                # Prob. of seed entering seed bank
+  dParam[7] <- 0.233                # Prob. of seed establishing from seed bank
+  dParam[8] <- 0.260                # Prob. of seed survival in seed bank
+  
+  # Parameters for initial rosette sizes (cm) after establishment
+  dParam[9] <- fits_rs_CA[1]        # Mean rosette size (CA)
+  dParam[10] <- fits_rs_CA[2]       # SD rosette size (CA)
+  dParam[11] <- fits_rs_CN[1]       # Mean rosette size (CN)
+  dParam[12] <- fits_rs_CN[2]       # SD rosette size (CN)
+  
+  # Parameters for flowering probability and head production as function of rosette size
+  dParam[13] <- flow_rs_CA          # Prob. flowering intercept (CA)
+  dParam[14] <- NA                  # Prob. flowering slope, not applicable (CA)
+  dParam[15] <- flow_rs_CN          # Prob. flowering intercept (CN)
+  dParam[16] <- NA                  # Prob. flowering slope, not applicable (CN)
+  dParam[17] <- mod_head_CA         # Num. heads intercept (CA)
+  dParam[18] <- NA                  # Num. heads slope, not applicable (CA)
+  dParam[19] <- mod_head_CN[1]      # Num. heads intercept (CN)
+  dParam[20] <- mod_head_CN[2]      # Num. heads slope (CN)
+  
+  # Parameters for distribution of flower head heights among flowering individuals
+  dParam[21] <- fits_hd_CA_NW[1]    # Mean head height (CA)
+  dParam[22] <- fits_hd_CA_NW[2]    # SD head height (CA)
+  dParam[23] <- fits_hd_CN_NW[1]    # Mean head height (CN)
+  dParam[24] <- fits_hd_CN_NW[2]    # SD head height (CA)
+  
+  # Parameters for survival probability of rosettes
+  dParam[25] <- surv_rs_CA          # Prob. survival intercept (CA)
+  dParam[26] <- NA                  # Prob. survival slope, not applicable (CA)
+  dParam[27] <- surv_rs_CN          # Prob. survival intercept (CN)
+  dParam[28] <- NA                  # Prob. survival slope, not applicable (CN)
   
   # Per-head production of seeds, and subsequent seed survival
   if(dType == "seeds"){
     if(species == "CA"){
-      nseed <- seedsCA*(1 - sPred)}
+      nseed <- dParam[1]*(1 - dParam[5])}
     if(species == "CN"){
-      nseed <- seedsCN*(1 - sPred)}
+      nseed <- dParam[2]*(1 - dParam[5])}
     return(round(nseed))}
   
   # Establishment of seeds that do not enter the seed bank
   if(dType == "estAG"){
     if(species == "CA"){
-      prob <- estCA}
+      prob <- dParam[3]}
     if(species == "CN"){
-      prob <- estCN}
+      prob <- dParam[4]}
     outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
     return(outcomes)}
   
   # Entry of seeds into the seed bank
   if(dType == "entSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(sbEnt, 1 - sbEnt), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[6], 1 - dParam[6]), replace = TRUE)
     return(outcomes)}
-  
-  # Survival of seeds in the seed bank
-  if(dType == "surSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(sbSur, 1 - sbSur), replace = TRUE)
-    return(outcomes)}
-  
+
   # Establishment of seeds from the seed bank
   if(dType == "estSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(sbEst, 1 - sbEst), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[7], 1 - dParam[7]), replace = TRUE)
+    return(outcomes)}
+    
+  # Survival of seeds in the seed bank
+  if(dType == "surSB"){
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[8], 1 - dParam[8]), replace = TRUE)
     return(outcomes)}
   
   # Initial rosette size upon establishment
   if(dType == "rsize"){
     if(species == "CA"){
       ros <- rtruncnorm(n, a = min(na.omit(data_rs$DM_t)),
-                        mean = fits_rs_CA[1], sd = fits_rs_CA[2])}
+                        mean = dParam[9], sd = dParam[10])}
     if(species == "CN"){
       ros <- rtruncnorm(n, a = min(na.omit(data_rs$DM_t)),
-                        mean = fits_rs_CN[1], sd = fits_rs_CN[2])}
+                        mean = dParam[11], sd = dParam[12])}
     return(ros)}
   
   # Flowering probability as function of initial rosette size
   if(dType == "flowering"){
     if(species == "CA"){
-      prob <- flow_rs_CA}
+      prob <- dParam[13]}
     if(species == "CN"){
-      prob <- flow_rs_CN}
+      prob <- dParam[15]}
     outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
     return(outcomes)}
   
@@ -417,25 +448,25 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0){
   # Round any non-integers up to the nearest head
   if(dType == "flowers"){
     if(species == "CA"){
-      head <- rep(mod_head_CA, length(rsize))}
+      head <- rep(dParam[17], length(rsize))}
     if(species == "CN"){
-      head <- mod_head_CN[1] + mod_head_CN[2]*rsize}
+      head <- dParam[19] + dParam[20]*rsize}
     return(ceiling(head))}
   
   # Distribution of flower heights for a given individual
   if(dType == "height"){
     if(species == "CA"){
-      height <- rnorm(n, mean = fits_hd_CA_NW[1], sd = fits_hd_CA_NW[2])/100}
+      height <- rnorm(n, mean = dParam[21], sd = dParam[22])/100}
     if(species == "CN"){
-      height <- rnorm(n, mean = fits_hd_CN_NW[1], sd = fits_hd_CN_NW[2])/100}
+      height <- rnorm(n, mean = dParam[23], sd = dParam[24])/100}
     return(height)}
   
   # Rosette survival as function of initial rosette size
   if(dType == "survival"){
     if(species == "CA"){
-      prob <- surv_rs_CA}
+      prob <- dParam[25]}
     if(species == "CN"){
-      prob <- surv_rs_CN}
+      prob <- dParam[27]}
     outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)}}
 
 
