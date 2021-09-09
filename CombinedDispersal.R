@@ -284,9 +284,8 @@ transform.ln <- function(meanlog, sdlog, fv, which.trans){
   # Output new meanlog and sdlog
   return(c(newMeanlog, newSDlog))}
 
-# Function generating a dispersal kernel using WALD model (Katul et al. 2005)
-# Code adapted from Skarpaas and Shea (2007)
-WALD.b <- function(n, H, species){
+# Dispersal function for collecting parameters into single vector
+wald.param <- function(sNum, sVal){
   
   # Prepare vector to store scalable dispersal parameters
   sParam <- c()
@@ -299,6 +298,33 @@ WALD.b <- function(n, H, species){
   sParam[5] <- tv_params_CA[2]      # Log SD terminal velocity, lognormal dist. (CA)
   sParam[6] <- tv_params_CN[1]      # Log mean terminal velocity, lognormal dist. (CN)
   sParam[7] <- tv_params_CN[2]      # Log SD terminal velocity, lognormal dist. (CN)
+  
+  # Note: if transforming wind speeds, use sNum=2 for mean and sNum=3 for SD
+  # Note: transformation on TV parameters transforms mean/SD, NOT log mean/SD
+  if(sNum == 1){
+    sParam[1] <- sParam[1]*sVal}
+  if(sNum == 2){
+    sParam[c(2, 3)] <- transform.wb(sParam[2], sParam[3], sVal, "mean")}
+  if(sNum == 3){
+    sParam[c(2, 3)] <- transform.wb(sParam[2], sParam[3], sVal, "sd")}
+  if(sNum == 4){
+    sParam[c(4, 5)] <- transform.ln(sParam[sNum], sParam[sNum + 1], sVal, "mean")}
+  if(sNum == 5){
+    sParam[c(4, 5)] <- transform.ln(sParam[sNum - 1], sParam[sNum], sVal, "sd")}
+  if(sNum == 6){
+    sParam[c(6, 7)] <- transform.ln(sParam[sNum], sParam[sNum + 1], sVal, "mean")}
+  if(sNum == 7){
+    sParam[c(6, 7)] <- transform.ln(sParam[sNum - 1], sParam[sNum], sVal, "sd")}
+  
+  # Return vector of dispersal parameters
+  return(sParam)}
+
+# Function generating a dispersal kernel using WALD model (Katul et al. 2005)
+# Code adapted from Skarpaas and Shea (2007)
+wald <- function(n, H, species, sVec){
+  
+  # Import vector of dispersal parameters
+  sParam <- sVec
 
   # Initialise physical constants
   K <- 0.4          # von Karman constant
@@ -502,7 +528,7 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
 ##### 1D expansion ----------------------------------------------------------------------------------------
 
 # Function to simulate invasion wave
-waveSim <- function(dVec){
+waveSim <- function(dVec, sVec){
   
   # Function to see if a seed is taken to the nearest nest
   nestsearch <- function(d, range){
@@ -512,8 +538,8 @@ waveSim <- function(dVec){
     ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
   
   # Estimate dispersal distances from given point; assume 1m plant height  
-  kern <- function(n, h, species, d0 = 0){
-    d <- WALD.b(n, h, species) + d0
+  kern <- function(n, h, species, sVec, d0 = 0){
+    d <- wald(n, h, species, sVec) + d0
     return(d)}
   
   # Choose species to model
@@ -619,7 +645,8 @@ waveSim <- function(dVec){
       f1 <- unlist(sapply(nflow, demo, dType = "height", species = species, dVec = dVec))
       s1 <- rep(demo("seeds", "CN", dVec), times = sum(nflow))
       d1 <- unlist(mapply(x = temp2$d, times = nflow, rep))
-      seedsNew <- as.vector(mapply(kern, n = s1, h = f1, d0 = d1, MoreArgs = list(species = species)))
+      seedsNew <- as.vector(mapply(kern, n = s1, h = f1, d0 = d1,
+                                   MoreArgs = list(species = species, sVec = sVec)))
       seedsNew <- data.frame(cbind(seedsNew, rep(0, length(seedsNew))))
       names(seedsNew) <- c("d", "germ")}
     
@@ -648,7 +675,7 @@ waveSim <- function(dVec){
   return(list(wavefront = vals, positions = PlotList))}
 
 # Calculate wavespeed elasticity
-waveElas <- function(dNum, dVal){
+waveElas <- function(dNum, dVal, sNum, sVal){
   
   # Let dNum be the demographic parameter number
   # Let dVal be the proportion to multiply the original parameter by
@@ -657,14 +684,20 @@ waveElas <- function(dNum, dVal){
   time.start <- Sys.time()
   
   # Initialise parameter vectors
-  wVec1 <- demo.param(dNum = 1, dVal = 1)
-  wVec2 <- demo.param(dNum = dNum, dVal = dVal)
+  dVec1 <- demo.param(dNum = 1, dVal = 1)
+  sVec1 <- wald.param(sNum = 1, sVal = 1)
+  if(dVal == 1 & sVal != 1){
+    dVec2 <- demo.param(dNum = 1, dVal = 1)
+    sVec2 <- wald.param(sNum = sNum, sVal = sVal)}
+  if(dVal != 1 & sVal == 1){
+    dVec2 <- demo.param(dNum = dNum, dVal = dVal)
+    sVec2 <- wald.param(sNum = 1, sVal = 1)}
   
   # Run simulation without any parameter changes
-  wave1 <- waveSim(wVec1)
+  wave1 <- waveSim(dVec1, sVec1)
   
   # Run simulation with increase/decrease on a specified parameter
-  wave2 <- waveSim(wVec2)
+  wave2 <- waveSim(dVec2, sVec2)
   
   # Calculate mean wavespeeds
   mWave1 <- mean(diff(wave1$wavefront))
@@ -672,7 +705,10 @@ waveElas <- function(dNum, dVal){
   
   # Calculate percent change in wavespeed and parameter
   wPct <- (mWave2 - mWave1)/mWave1*100
-  pPct <- (dVal - 1)*100
+  if(dVal == 1 & sVal != 1){
+    pPct <- (sVal - 1)*100}
+  if(dVal != 1 & sVal == 1){
+    pPct <- (dVal - 1)*100}
   
   # Calculate elasticity
   elas <- wPct/pPct
@@ -685,10 +721,6 @@ waveElas <- function(dNum, dVal){
               wSpeedMean1 = mWave1, wSpeedMean2 = mWave2,
               wSpeed1 = diff(wave1$wavefront), wSpeed2 = diff(wave2$wavefront),
               wFront1 = wave1$wavefront, wFront2 = wave2$wavefront))}
-
-# Calculate wavespeeds
-#wave1 <- waveSim(dNum = 5, dVal = 0.7)
-#mean(diff(wave1[[1]]))
 
 # Generate GIF of population spread
 # Limit to 10000 m (nYear = 100 recommended)
