@@ -361,8 +361,8 @@ WALD.b <- function(n, H, species){
 
 ##### Set up demography framework -------------------------------------------------------------------------
 
-# Demography function for survival, reproduction, and more
-demo <- function(dType, species, n = 0, rsize = 0, nflow = 0, dNum = dNum, dVal = dVal){
+# Demography function for collecting parameters into single vector
+demo.param <- function(dNum, dVal){
   
   # Prepare vector to store all demographic parameters
   dParam <- c()
@@ -409,6 +409,15 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0, dNum = dNum, dVal 
   dVec <- rep(1, length(dParam))
   dVec[dNum] <- dVal
   dParam <- dParam*dVec
+  
+  # Return vector of demographic parameters
+  return(dParam)}
+
+# Demography function for survival, reproduction, and more
+demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
+  
+  # Import vector of demographic parameters
+  dParam <- dVec
   
   # Per-head production of seeds, and subsequent seed survival
   if(dType == "seeds"){
@@ -493,7 +502,7 @@ demo <- function(dType, species, n = 0, rsize = 0, nflow = 0, dNum = dNum, dVal 
 ##### 1D expansion ----------------------------------------------------------------------------------------
 
 # Function to simulate invasion wave
-waveSim <- function(dNum, dVal){
+waveSim <- function(dVec){
   
   # Function to see if a seed is taken to the nearest nest
   nestsearch <- function(d, range){
@@ -531,8 +540,7 @@ waveSim <- function(dNum, dVal){
       nests <- sample(seq(0, nYear*200, by = 0.1), nDens*nYear*200) + 0.01
       
       # Initialise data; start with a single rosette
-      plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, n = 1,
-                                                             dNum = dNum, dVal = dVal), flow = 0)
+      plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, dVec, n = 1), flow = 0)
       seedsAG <- data.frame(matrix(ncol = 2, nrow = 0))
       colnames(seedsAG) <- c("d", "germ")
       seedsSB <- data.frame(matrix(ncol = 2, nrow = 0))
@@ -541,7 +549,7 @@ waveSim <- function(dNum, dVal){
     
     # Surviving above-ground seeds become rosettes
     seedsAG$stage <- rep(0, nrow(seedsAG))
-    seedsAG$rsize <- demo("rsize", species, n = nrow(seedsAG), dNum = dNum, dVal = dVal)
+    seedsAG$rsize <- demo("rsize", species, dVec, n = nrow(seedsAG))
     seedsAG$flow <- rep(0, nrow(seedsAG))
     seedsAG <- seedsAG[, !names(seedsAG) == c("germ")]
     plants <- rbind(plants, seedsAG)
@@ -572,7 +580,7 @@ waveSim <- function(dNum, dVal){
     # Remove rosettes that do not survive
     # Never kill when only one rosette; prevents code from crashing
     if(nrow(plants) > 1){
-      plants <- plants[demo("survival", species, n = nrow(plants), dNum = dNum, dVal = dVal) == 1, ]}
+      plants <- plants[demo("survival", species, dVec, n = nrow(plants)) == 1, ]}
     
     # Trim core areas as wave progresses to save computational resources
     if(trim == TRUE & nrow(plants) > 0){
@@ -588,17 +596,17 @@ waveSim <- function(dNum, dVal){
     
     # Simulate flowering for adults
     if(sum(plants$stage == 2) > 0){
-      plants$flow[plants$stage == 2] <- demo("flowering", species, dNum = dNum, dVal = dVal,
+      plants$flow[plants$stage == 2] <- demo("flowering", species, dVec,
                                              n = length(plants$flow[plants$stage == 2]))}
     
     # Survival and establishment of seeds already in seed bank
     if(nrow(seedsSB) > 0){
-      seedsSB <- seedsSB[demo("surSB", species, n = nrow(seedsSB), dNum = dNum, dVal = dVal) == 1, ]
+      seedsSB <- seedsSB[demo("surSB", species, dVec, n = nrow(seedsSB)) == 1, ]
       if(nrow(seedsSB) > 0){
-        vec <- demo("estSB", species, n = nrow(seedsSB), dNum = dNum, dVal = dVal)
+        vec <- demo("estSB", species, dVec, n = nrow(seedsSB))
         temp1 <- seedsSB[vec == 1, ]
         temp1$stage <- rep(0, nrow(temp1))
-        temp1$rsize <- demo("rsize", species, n = nrow(temp1), dNum = dNum, dVal = dVal)
+        temp1$rsize <- demo("rsize", species, dVec, n = nrow(temp1))
         temp1$flow <- rep(0, nrow(temp1))
         temp1 <- temp1[, !names(temp1) == c("germ")]}
       plants <- na.omit(rbind(plants, temp1))
@@ -607,22 +615,22 @@ waveSim <- function(dNum, dVal){
     # Simulate dispersal from flowering adults
     if(sum(plants$stage == 2) > 0){
       temp2 <- plants[plants$flow == 1, ]
-      nflow <- demo("flowers", species, rsize = temp2$rsize, dNum = dNum, dVal = dVal)
-      f1 <- unlist(sapply(nflow, demo, dType = "height", species = species, dNum = dNum, dVal = dVal))
-      s1 <- rep(demo("seeds", "CN", dNum = dNum, dVal = dVal), times = sum(nflow))
+      nflow <- demo("flowers", species, dVec, rsize = temp2$rsize)
+      f1 <- unlist(sapply(nflow, demo, dType = "height", species = species, dVec = dVec))
+      s1 <- rep(demo("seeds", "CN", dVec), times = sum(nflow))
       d1 <- unlist(mapply(x = temp2$d, times = nflow, rep))
       seedsNew <- as.vector(mapply(kern, n = s1, h = f1, d0 = d1, MoreArgs = list(species = species)))
       seedsNew <- data.frame(cbind(seedsNew, rep(0, length(seedsNew))))
       names(seedsNew) <- c("d", "germ")}
     
     # Simulate aboveground establishment from dispersed seeds
-    seedsNew$germ <- demo("estAG", species, n = nrow(seedsNew), dNum = dNum, dVal = dVal)
+    seedsNew$germ <- demo("estAG", species, dVec, n = nrow(seedsNew))
     seedsAG <- na.omit(rbind(seedsAG, seedsNew[seedsNew$germ == 1, ]))
     seedsNew <- seedsNew[seedsNew$germ == 0, ]
     
     # Entry of non-establishing seeds into seed bank
     if(nrow(seedsNew) > 0){
-      seedsNew$germ <- demo("entSB", species, n = nrow(seedsNew), dNum = dNum, dVal = dVal)
+      seedsNew$germ <- demo("entSB", species, dVec, n = nrow(seedsNew))
       seedsSB <- na.omit(rbind(seedsSB, seedsNew[seedsNew$germ == 1, ]))
       seedsSB$germ <- rep(0, nrow(seedsSB))}
     
@@ -645,14 +653,18 @@ waveElas <- function(dNum, dVal){
   # Let dNum be the demographic parameter number
   # Let dVal be the proportion to multiply the original parameter by
   
-  # Start timer
+  # Start system timer
   time.start <- Sys.time()
   
+  # Initialise parameter vectors
+  wVec1 <- demo.param(dNum = 1, dVal = 1)
+  wVec2 <- demo.param(dNum = dNum, dVal = dVal)
+  
   # Run simulation without any parameter changes
-  wave1 <- waveSim(dNum = 1, dVal = 1)
+  wave1 <- waveSim(wVec1)
   
   # Run simulation with increase/decrease on a specified parameter
-  wave2 <- waveSim(dNum = dNum, dVal = dVal)
+  wave2 <- waveSim(wVec2)
   
   # Calculate mean wavespeeds
   mWave1 <- mean(diff(wave1$wavefront))
