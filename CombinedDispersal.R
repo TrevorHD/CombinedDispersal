@@ -188,21 +188,21 @@ plot(density(ws_values))
 lines(density(rweibull(1000000, shape = ws_params[1], scale = ws_params[2])), col = "red")
 
 # Function to transform raw variance and/or mean, then output corresponding shape and scale
-transform.wb <- function(mean1, sd1, fv, which.trans){
+transform.wb <- function(shape, scale, fv, which.trans){
   
   # Internal functions to calculate mean and SD of Weibull distribution
-  meanW <- function(scale, shape){
+  meanW <- function(shape, scale){
     return(scale*gamma(1 + 1/shape))}
-  sdW <- function(scale, shape){
+  sdW <- function(shape, scale){
     return(sqrt((scale^2)*(gamma(1 + 2/shape) - gamma(1 + 1/shape)^2)))}
   
   # Must brute force a solution since there is no easy function for inverse gamma
   
   # Create meshpoints for combinations of shape and scale
-  scale <- seq(0.1, 5, by = 0.005)
-  shape <- seq(0.1, 5, by = 0.005)
-  scale1 = rep(scale, each = length(shape))
-  shape1 = rep(shape, times = length(scale))
+  scaleAxis <- seq(0.1, 5, by = 0.005)
+  shapeAxis <- seq(0.1, 5, by = 0.005)
+  scaleMesh = rep(scaleAxis, each = length(shapeAxis))
+  shapeMesh = rep(shapeAxis, times = length(scaleAxis))
   
   # Let fv be the value that the mean and/or standard deviation is multiplied by
   
@@ -218,19 +218,19 @@ transform.wb <- function(mean1, sd1, fv, which.trans){
     fs <- fv}
   
   # Transform variables
-  newMean = mean1*fm
-  newSD = sd1*fs
+  newMean = meanW(shape = shape, scale = scale)*fm
+  newSD = sdW(shape = shape, scale = scale)*fs
   
   # Evaluate mean and SD for at meshpoints
   # Then calculate difference between estimated and supplied mean and SD
-  diffs1 <- abs((mapply(meanW, scale = scale1, shape = shape1) - newMean)/newMean)
-  diffs2 <- abs((mapply(sdW, scale = scale1, shape = shape1) - newSD)/newSD)
+  diffs1 <- abs((mapply(meanW, shape = shapeMesh, scale = scaleMesh) - newMean)/newMean)
+  diffs2 <- abs((mapply(sdW, shape = shapeMesh, scale = scaleMesh) - newSD)/newSD)
   
   # Find argmin by equally weighting mean and SD differences from supplied
   argmin <- which.min((diffs1 + diffs2)/2)
   
   # Return shape and scale at argmin
-  return(c(shape1[argmin], scale1[argmin]))}
+  return(c(shapeMesh[argmin], scaleMesh[argmin]))}
 
 # Fit lognormal distribution to terminal velocities
 # Terminal velocity is drop tube length (1.25 m) divided by drop time
@@ -293,12 +293,12 @@ WALD.b <- function(n, H, species){
   
   # Set parameters for wind speed, seed terminal velocity, and vegetation height
   sParam[1] <- 0.15                 # Vegetation heignt in m
-  sParam[2] <- ws_params[1]         # Mean wind speed, Weibull dist.
-  sParam[3] <- ws_params[2]         # SD wind speed, Weibull dist.
-  sParam[4] <- tv_params_CA[1]      # Mean terminal velocity, lognormal dist. (CA)
-  sParam[5] <- tv_params_CA[2]      # SD terminal velocity, lognormal dist. (CA)
-  sParam[6] <- tv_params_CN[1]      # Mean terminal velocity, lognormal dist. (CN)
-  sParam[7] <- tv_params_CN[2]      # SD terminal velocity, lognormal dist. (CN)
+  sParam[2] <- ws_params[1]         # Shape, wind speed Weibull dist.
+  sParam[3] <- ws_params[2]         # Scale, wind speed Weibull dist.
+  sParam[4] <- tv_params_CA[1]      # Log mean terminal velocity, lognormal dist. (CA)
+  sParam[5] <- tv_params_CA[2]      # Log SD terminal velocity, lognormal dist. (CA)
+  sParam[6] <- tv_params_CN[1]      # Log mean terminal velocity, lognormal dist. (CN)
+  sParam[7] <- tv_params_CN[2]      # Log SD terminal velocity, lognormal dist. (CN)
 
   # Initialise physical constants
   K <- 0.4          # von Karman constant
