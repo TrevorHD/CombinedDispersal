@@ -639,9 +639,44 @@ waveSim <- function(dNum, dVal){
   # Return list of wavefront positions and all plant positions
   return(list(wavefront = vals, positions = PlotList))}
 
+# Calculate wavespeed elasticity
+waveElas <- function(dNum, dVal){
+  
+  # Let dNum be the demographic parameter number
+  # Let dVal be the proportion to multiply the original parameter by
+  
+  # Start timer
+  time.start <- Sys.time()
+  
+  # Run simulation without any parameter changes
+  wave1 <- waveSim(dNum = 1, dVal = 1)
+  
+  # Run simulation with increase/decrease on a specified parameter
+  wave2 <- waveSim(dNum = dNum, dVal = dVal)
+  
+  # Calculate mean wavespeeds
+  mWave1 <- mean(diff(wave1$wavefront))
+  mWave2 <- mean(diff(wave2$wavefront))
+  
+  # Calculate percent change in wavespeed and parameter
+  wPct <- (mWave2 - mWave1)/mWave1*100
+  pPct <- (dVal - 1)*100
+  
+  # Calculate elasticity
+  elas <- wPct/pPct
+  
+  # Calculate procedure time
+  time.elapsed <- as.numeric(difftime(Sys.time(), time.start, units = "hours"))
+  
+  # Return list of calculated quantities
+  return(list(procedure.time = paste0(time.elapsed, " hours"), elasticity = elas,
+              wSpeedMean1 = mWave1, wSpeedMean2 = mWave2,
+              wSpeed1 = diff(wave1$wavefront), wSpeed2 = diff(wave2$wavefront),
+              wFront1 = wave1$wavefront, wFront2 = wave2$wavefront))}
+
 # Calculate wavespeeds
-wave1 <- waveSim(dNum = 5, dVal = 0.7)
-mean(diff(wave1[[1]]))
+#wave1 <- waveSim(dNum = 5, dVal = 0.7)
+#mean(diff(wave1[[1]]))
 
 # Generate GIF of population spread
 # Limit to 10000 m (nYear = 100 recommended)
