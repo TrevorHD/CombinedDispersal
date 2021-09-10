@@ -411,11 +411,11 @@ demo.param <- function(dNum, dVal){
   
   # Parameters for flowering probability and head production as function of rosette size
   dParam[13] <- flow_rs_CA          # Prob. flowering intercept (CA)
-  dParam[14] <- NA                  # Prob. flowering slope, not applicable (CA)
+  dParam[14] <- 0                   # Prob. flowering slope, not applicable (CA)
   dParam[15] <- flow_rs_CN          # Prob. flowering intercept (CN)
-  dParam[16] <- NA                  # Prob. flowering slope, not applicable (CN)
+  dParam[16] <- 0                   # Prob. flowering slope, not applicable (CN)
   dParam[17] <- mod_head_CA         # Num. heads intercept (CA)
-  dParam[18] <- NA                  # Num. heads slope, not applicable (CA)
+  dParam[18] <- 0                   # Num. heads slope, not applicable (CA)
   dParam[19] <- mod_head_CN[1]      # Num. heads intercept (CN)
   dParam[20] <- mod_head_CN[2]      # Num. heads slope (CN)
   
@@ -425,11 +425,11 @@ demo.param <- function(dNum, dVal){
   dParam[23] <- fits_hd_CN_NW[1]    # Mean head height (CN)
   dParam[24] <- fits_hd_CN_NW[2]    # SD head height (CA)
   
-  # Parameters for survival probability of rosettes
+  # Parameters for survival probability of rosettes as function of rosette size
   dParam[25] <- surv_rs_CA          # Prob. survival intercept (CA)
-  dParam[26] <- NA                  # Prob. survival slope, not applicable (CA)
+  dParam[26] <- 0                   # Prob. survival slope, not applicable (CA)
   dParam[27] <- surv_rs_CN          # Prob. survival intercept (CN)
-  dParam[28] <- NA                  # Prob. survival slope, not applicable (CN)
+  dParam[28] <- 0                   # Prob. survival slope, not applicable (CN)
   
   # Scale only specified demographic parameter
   dVec <- rep(1, length(dParam))
@@ -490,17 +490,19 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
   # Flowering probability as function of initial rosette size
   if(dType == "flowering"){
     if(species == "CA"){
-      prob <- dParam[13]}
+      prob1 <- dParam[13] + dParam[14]*rsize}
     if(species == "CN"){
-      prob <- dParam[15]}
-    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
+      prob1 <- dParam[15] + dParam[16]*rsize}
+    prob0 <- 1 - prob1
+    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[,i])
+    outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
     return(outcomes)}
   
   # Flower production as function of initial rosette size
   # Round any non-integers up to the nearest head
   if(dType == "flowers"){
     if(species == "CA"){
-      head <- rep(dParam[17], length(rsize))}
+      head <- dParam[17] + dParam[18]*rsize}
     if(species == "CN"){
       head <- dParam[19] + dParam[20]*rsize}
     return(ceiling(head))}
@@ -516,10 +518,13 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
   # Rosette survival as function of initial rosette size
   if(dType == "survival"){
     if(species == "CA"){
-      prob <- dParam[25]}
+      prob1 <- dParam[25] + dParam[26]*rsize}
     if(species == "CN"){
-      prob <- dParam[27]}
-    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)}}
+      prob1 <- dParam[27] + dParam[28]*rsize}
+    prob0 <- 1 - prob1
+    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[,i])
+    outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
+    return(outcomes)}}
 
 
 
@@ -528,7 +533,7 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
 ##### 1D expansion ----------------------------------------------------------------------------------------
 
 # Function to simulate invasion wave
-waveSim <- function(dVec, sVec){
+wave.sim <- function(dVec, sVec){
   
   # Function to see if a seed is taken to the nearest nest
   nestsearch <- function(d, range){
@@ -606,7 +611,7 @@ waveSim <- function(dVec, sVec){
     # Remove rosettes that do not survive
     # Never kill when only one rosette; prevents code from crashing
     if(nrow(plants) > 1){
-      plants <- plants[demo("survival", species, dVec, n = nrow(plants)) == 1, ]}
+      plants <- plants[demo("survival", species, dVec, rsize = plants$rsize) == 1, ]}
     
     # Trim core areas as wave progresses to save computational resources
     if(trim == TRUE & nrow(plants) > 0){
@@ -623,7 +628,7 @@ waveSim <- function(dVec, sVec){
     # Simulate flowering for adults
     if(sum(plants$stage == 2) > 0){
       plants$flow[plants$stage == 2] <- demo("flowering", species, dVec,
-                                             n = length(plants$flow[plants$stage == 2]))}
+                                             rsize = plants$rsize[plants$stage == 2])}
     
     # Survival and establishment of seeds already in seed bank
     if(nrow(seedsSB) > 0){
@@ -675,7 +680,7 @@ waveSim <- function(dVec, sVec){
   return(list(wavefront = vals, positions = PlotList))}
 
 # Calculate wavespeed elasticity
-waveElas <- function(dNum, dVal, sNum, sVal){
+wave.elas <- function(dNum, dVal, sNum, sVal){
   
   # Let dNum be the demographic parameter number
   # Let dVal be the proportion to multiply the original parameter by
@@ -694,10 +699,10 @@ waveElas <- function(dNum, dVal, sNum, sVal){
     sVec2 <- wald.param(sNum = 1, sVal = 1)}
   
   # Run simulation without any parameter changes
-  wave1 <- waveSim(dVec1, sVec1)
+  wave1 <- wave.sim(dVec1, sVec1)
   
   # Run simulation with increase/decrease on a specified parameter
-  wave2 <- waveSim(dVec2, sVec2)
+  wave2 <- wave.sim(dVec2, sVec2)
   
   # Calculate mean wavespeeds
   mWave1 <- mean(diff(wave1$wavefront))
