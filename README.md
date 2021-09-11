@@ -20,8 +20,20 @@ An model combining primary and secondary dispersal in the invasive thistle *Card
 
 ## Scripts
 
-**CombinedDispersal** *(.R)* - Code used to create the combined dispersal and spread model.
+**01_Setup** *(.R)* - Code used to read in the data and fit certain demographic and dispsersal parameters.
 
-## Writing
+**02_DemoDisp** *(.R)* - Code used to define functions used to model demographic and dispersal processes.
+
+**03_WaveElas** *(.R)* - Code used to simulate an invasion wave and calculate wavespeed elasticity.
+
+**S1_Extras** *(.R)* - Extra code for two-dimensional spread that will likely not be implemented.
+
+## Figures
+
+**Spread1** *(.gif)* - An example of wave movement, using bars to visualise density.
+
+**Spread2** *(.gif)* - An example of wave movement, using lines to visualise density.
+
+## Other
 
 **CombinedDispersalMS_v1** *(.docx)* - Manuscript for this research.
