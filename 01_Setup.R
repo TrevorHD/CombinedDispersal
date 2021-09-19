@@ -179,7 +179,7 @@ mod_head_CA <- fixef(mod_head_CA)
 
 # Fit Weibull distribution to wind speeds
 # Assume no seed release occurs for wind speeds of zero, so remove zero values
-# Wind data is a bit messy, so KS is not significant; fit is still reasonable, though
+# Wind data is a bit messy, so K-S is not significant; fit is still reasonable, though
 ws_values <- c(data_ws1$Wind1, data_ws2$Wind1)
 ws_values <- ws_values[ws_values > 0]
 ws_params <- fitdistr(ws_values, "weibull")$estimate
@@ -202,4 +202,35 @@ tv_params_CA <- fitdistr(tv_values_CA, "lognormal")$estimate
 ks.test(tv_values_CA, plnorm, meanlog = tv_params_CA[1], sdlog = tv_params_CA[2])
 plot(density(tv_values_CA))
 lines(density(rlnorm(1000000, meanlog = tv_params_CA[1], sdlog = tv_params_CA[2])), col = "red")
+
+
+
+
+
+##### Set up ant seed dispersal distribution --------------------------------------------------------------
+
+# Data from Andersen (1988)
+an_values <- c(rep(0.25, 8), rep(0.75, 14), rep(1.25, 27), rep(1.75, 14), rep(2.25, 7),
+               rep(2.75, 8), rep(3.25, 4), rep(3.75, 2), rep(4.25, 2), rep(4.75, 7),
+               rep(6.00, 2), rep(10.75, 1))
+
+# Fit lognormal distribution
+an_params <- fitdistr(an_values, "lognormal")$estimate
+ks.test(an_values, plnorm, meanlog = an_params[1], sdlog = an_params[2])
+plot(density(an_values))
+lines(density(rlnorm(1000000, meanlog = an_params[1], sdlog = an_params[2])), col = "red")
+
+# Fit gamma distribution
+an_params <- fitdistr(an_values, "gamma")$estimate
+ks.test(an_values, pgamma, shape = an_params[1], rate = an_params[2])
+plot(density(an_values))
+lines(density(rgamma(1000000, shape = an_params[1], rate = an_params[2])), col = "red")
+
+# Fit Weibull distribution
+an_params <- fitdistr(an_values, "weibull")$estimate
+ks.test(an_values, pweibull, shape = an_params[1], scale = an_params[2])
+plot(density(an_values))
+lines(density(rweibull(1000000, shape = an_params[1], scale = an_params[2])), col = "red")
+
+# Weibull distribution seems to be the best fit based on K-S test
 
