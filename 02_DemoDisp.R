@@ -101,6 +101,8 @@ wald.param <- function(sNum, sVal){
   sParam[5] <- tv_params_CA[2]      # Log SD terminal velocity, lognormal dist. (CA)
   sParam[6] <- tv_params_CN[1]      # Log mean terminal velocity, lognormal dist. (CN)
   sParam[7] <- tv_params_CN[2]      # Log SD terminal velocity, lognormal dist. (CN)
+  sParam[8] <- an_params[1]         # Intercept, ant dispersal prob. as function of distance
+  sParam[9] <- an_params[2]         # Slope, ant dispersal prob. as function of distance
   
   # Note: if transforming wind speeds, use sNum=2 for mean and sNum=3 for SD
   # Note: transformation on TV parameters transforms mean/SD, NOT log mean/SD
@@ -118,6 +120,10 @@ wald.param <- function(sNum, sVal){
     sParam[c(6, 7)] <- transform.ln(sParam[sNum], sParam[sNum + 1], sVal, "mean")}
   if(sNum == 7){
     sParam[c(6, 7)] <- transform.ln(sParam[sNum - 1], sParam[sNum], sVal, "sd")}
+  if(sNum == 8){
+    sParam[8] <- sParam[8]*sVal}
+  if(sNum == 9){
+    sParam[9] <- sParam[9]*sVal}
   
   # Return vector of dispersal parameters
   return(sParam)}
@@ -183,6 +189,18 @@ wald <- function(n, H, species, sVec){
   # No dispersal if released below canopy
   if(H <= h){
     return(rep(0, n))}}
+
+# Function for probability of seed removal via ant
+ant <- function(dist, sVec){
+  
+  # Import vector of dispersal parameters
+  sParam <- sVec
+  
+  # Calculate probability of seed removal
+  prob <- exp(sParam[8] + sParam[9]*dist)
+  
+  # Return probability of seed removal
+  return(prob)}
 
 
 

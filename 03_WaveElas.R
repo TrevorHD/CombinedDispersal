@@ -4,10 +4,11 @@
 wave.sim <- function(dVec, sVec){
   
   # Function to see if a seed is taken to the nearest nest
-  nestsearch <- function(d, range){
+  nestsearch <- function(d, range, sVec){
     dists <- abs(d - nestsR)
     centre <- nestsR[which.min(dists)]
-    toNest <- sample(c(0, 1), 1, prob = c(0.05, 0.95))
+    toProb <- ant(min(dists), sVec)
+    toNest <- sample(c(0, 1), 1, prob = c(1 - toProb, toProb))
     ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
   
   # Estimate dispersal distances from given point; assume 1m plant height  
@@ -20,8 +21,8 @@ wave.sim <- function(dVec, sVec){
   
   # Set various parameters for wave model
   nestOn <- TRUE    # Should ant nests be included
-  range <- 5        # Max detection range (m) from ant nests
-  nDens <- 0.1      # Ant nest density (nests/m)
+  range <- 15       # Max detection range (m) from ant nests
+  nDens <- 0.2      # Ant nest density (nests/m)
   nYear <- 1000     # Number of years to simulate
   trim <- TRUE      # Should core area of wave be trimmed?
   trimAmt <- 500    # Distance (m) behind wavefront to trim
@@ -136,7 +137,7 @@ wave.sim <- function(dVec, sVec){
     
     # Simulate secondary seed dispersal via ants
     if(nestOn == TRUE){
-      seedsAG$d <- sapply(seedsAG$d, nestsearch, range = range)}
+      seedsAG$d <- sapply(seedsAG$d, nestsearch, range = range, sVec = sVec)}
     
     # Store wavefront distance
     vals <- c(vals, max(plants$d))
