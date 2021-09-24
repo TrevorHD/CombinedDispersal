@@ -40,7 +40,7 @@ wave.sim <- function(dVec, sVec){
       nests <- sample(seq(0, nYear*200, by = 0.1), nDens*nYear*200) + 0.01
       
       # Initialise data; start with a single rosette
-      plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, dVec, n = 1), flow = 0)
+      plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, dVec, n = 1))
       seedsAG <- data.frame(matrix(ncol = 2, nrow = 0))
       colnames(seedsAG) <- c("d", "germ")
       seedsSB <- data.frame(matrix(ncol = 2, nrow = 0))
@@ -50,7 +50,6 @@ wave.sim <- function(dVec, sVec){
     # Surviving above-ground seeds become rosettes
     seedsAG$stage <- rep(0, nrow(seedsAG))
     seedsAG$rsize <- demo("rsize", species, dVec, n = nrow(seedsAG))
-    seedsAG$flow <- rep(0, nrow(seedsAG))
     seedsAG <- seedsAG[, !names(seedsAG) == c("germ")]
     plants <- rbind(plants, seedsAG)
     
@@ -88,16 +87,8 @@ wave.sim <- function(dVec, sVec){
       seedsSB <- seedsSB[seedsSB$d > max(plants$d) - trimAmt, ]
       nestsR <- nests[nests > min(plants$d) & nests < max(plants$d) + 1000]}
     
-    # Some proportion of rosettes reach adulthood in one year
-    # Ones that don't will remain rosettes for another year before becoming adults
-    plants$stage[plants$stage == 1] <- 2
-    plants$stage[plants$stage == 0] <- sample(c(1, 2), size = length(plants$stage[plants$stage == 0]),
-                                              prob = c(1 - pAdult, pAdult), replace = TRUE)
-    
-    # Simulate flowering for adults
-    if(sum(plants$stage == 2) > 0){
-      plants$flow[plants$stage == 2] <- demo("flowering", species, dVec,
-                                             rsize = plants$rsize[plants$stage == 2])}
+    # Simulate bolting and flowering; individuals that don't will remain rosettes
+    plants$stage <- demo("flowering", species, dVec, rsize = plants$rsize)
     
     # Survival and establishment of seeds already in seed bank
     if(nrow(seedsSB) > 0){
@@ -107,14 +98,13 @@ wave.sim <- function(dVec, sVec){
         temp1 <- seedsSB[vec == 1, ]
         temp1$stage <- rep(0, nrow(temp1))
         temp1$rsize <- demo("rsize", species, dVec, n = nrow(temp1))
-        temp1$flow <- rep(0, nrow(temp1))
         temp1 <- temp1[, !names(temp1) == c("germ")]}
       plants <- na.omit(rbind(plants, temp1))
       seedsSB <- seedsSB[vec == 0, ]}
     
     # Simulate dispersal from flowering adults
-    if(sum(plants$stage == 2) > 0){
-      temp2 <- plants[plants$flow == 1, ]
+    if(sum(plants$stage == 1) > 0){
+      temp2 <- plants[plants$stage == 1, ]
       nflow <- demo("flowers", species, dVec, rsize = temp2$rsize)
       f1 <- unlist(sapply(nflow, demo, dType = "height", species = species, dVec = dVec))
       s1 <- rep(demo("seeds", "CN", dVec), times = sum(nflow))
@@ -143,7 +133,7 @@ wave.sim <- function(dVec, sVec){
     vals <- c(vals, max(plants$d))
     
     # Kill all adults after they reproduce
-    plants <- plants[plants$stage != 2, ]}
+    plants <- plants[plants$stage != 1, ]}
   
   # Return list of wavefront positions and all plant positions
   return(list(wavefront = vals, positions = PlotList))}
