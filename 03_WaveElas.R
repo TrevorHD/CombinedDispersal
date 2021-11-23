@@ -132,7 +132,11 @@ wave.sim <- function(dVec, sVec){
     vals <- c(vals, max(plants$d))
     
     # Kill all adults after they reproduce
-    plants <- plants[plants$stage != 1, ]}
+    plants <- plants[plants$stage != 1, ]
+    
+    # Print procedure progress
+    shell("cls")
+    cat(paste0(i, "/", nYear, " (", round(i/nYear, 3)*100, "%) complete"))}
   
   # Return list of wavefront positions and all plant positions
   return(list(wavefront = vals, positions = PlotList))}
