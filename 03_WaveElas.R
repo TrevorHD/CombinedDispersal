@@ -25,9 +25,8 @@ wave.sim <- function(dVec, sVec){
   nDens <- 0.2      # Ant nest density (nests/m)
   nYear <- 1000     # Number of years to simulate
   trim <- TRUE      # Should core area of wave be trimmed?
-  trimAmt <- 500    # Distance (m) behind wavefront to trim
-  tDens <- 10       # Max thistle density per metre
-  pAdult <- 0.5     # Proportion of rosettes that reach adulthood in 1 year
+  trimAmt <- 1500   # Distance (m) behind wavefront to trim
+  tDens <- 5        # Max thistle density per metre
   plotOn <- FALSE   # Plot wave?
   
   # Run invasion wave simulation
@@ -138,11 +137,8 @@ wave.sim <- function(dVec, sVec){
   # Return list of wavefront positions and all plant positions
   return(list(wavefront = vals, positions = PlotList))}
 
-# Calculate wavespeed elasticity
-wave.elas <- function(dNum, dVal, sNum, sVal){
-  
-  # Let dNum be the demographic parameter number
-  # Let dVal be the proportion to multiply the original parameter by
+# Calculate baseline wavespeeds
+wave.base <- function(){
   
   # Start system timer
   time.start <- Sys.time()
@@ -150,6 +146,31 @@ wave.elas <- function(dNum, dVal, sNum, sVal){
   # Initialise parameter vectors
   dVec1 <- demo.param(dNum = 1, dVal = 1)
   sVec1 <- wald.param(sNum = 1, sVal = 1)
+  
+  # Run simulation without any parameter changes
+  wave1 <- wave.sim(dVec1, sVec1)
+  
+  # Calculate mean wavespeed
+  mWave1 <- mean(diff(wave1$wavefront))
+  
+  # Calculate procedure time
+  time.elapsed <- as.numeric(difftime(Sys.time(), time.start, units = "hours"))
+  
+  # Return list of calculated quantities
+  return(list(procedure.time = paste0(time.elapsed, " hours"), wSpeedMean1 = mWave1,
+              wSpeed1 = diff(wave1$wavefront), wFront1 = wave1$wavefront))}
+
+# Calculate wavespeed elasticity
+wave.elas <- function(dNum, dVal, sNum, sVal, baseObj){
+  
+  # Let dNum be the demographic parameter number
+  # Let dVal be the proportion to multiply the original parameter by
+  # Let baseObj be the baseline wave object
+  
+  # Start system timer
+  time.start <- Sys.time()
+  
+  # Initialise parameter vectors
   if(dVal == 1 & sVal != 1){
     dVec2 <- demo.param(dNum = 1, dVal = 1)
     sVec2 <- wald.param(sNum = sNum, sVal = sVal)}
@@ -157,14 +178,11 @@ wave.elas <- function(dNum, dVal, sNum, sVal){
     dVec2 <- demo.param(dNum = dNum, dVal = dVal)
     sVec2 <- wald.param(sNum = 1, sVal = 1)}
   
-  # Run simulation without any parameter changes
-  wave1 <- wave.sim(dVec1, sVec1)
-  
   # Run simulation with increase/decrease on a specified parameter
   wave2 <- wave.sim(dVec2, sVec2)
   
   # Calculate mean wavespeeds
-  mWave1 <- mean(diff(wave1$wavefront))
+  mWave1 <- baseObj$wSpeedMean1
   mWave2 <- mean(diff(wave2$wavefront))
   
   # Calculate percent change in wavespeed and parameter
@@ -183,8 +201,8 @@ wave.elas <- function(dNum, dVal, sNum, sVal){
   # Return list of calculated quantities
   return(list(procedure.time = paste0(time.elapsed, " hours"), elasticity = elas,
               wSpeedMean1 = mWave1, wSpeedMean2 = mWave2,
-              wSpeed1 = diff(wave1$wavefront), wSpeed2 = diff(wave2$wavefront),
-              wFront1 = wave1$wavefront, wFront2 = wave2$wavefront))}
+              wSpeed1 = baseObj$wSpeed1, wSpeed2 = diff(wave2$wavefront),
+              wFront1 = baseObj$wFront1, wFront2 = wave2$wavefront))}
 
 # Generate GIF of population spread
 # Limit to 10000 m (nYear = 100 recommended)
