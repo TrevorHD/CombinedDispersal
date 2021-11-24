@@ -81,6 +81,10 @@ transform.ln <- function(meanlog, sdlog, fv, which.trans){
   # Output new meanlog and sdlog
   return(c(newMeanlog, newSDlog))}
 
+# Function to transform log odds ratio to probability
+invlogit <- function(x){
+  return(exp(x)/(1 + exp(x)))}
+
 
 
 
@@ -255,6 +259,13 @@ demo.param <- function(dNum, dVal, CNFR = TRUE){
   dParam[27] <- surv_rs_CN          # Prob. survival intercept (CN)
   dParam[28] <- 0                   # Prob. survival slope, not applicable (CN)
   
+  # Re-assign flowering and survival parameters when not using flat rates
+  if(CNFR == FALSE){
+    dParam[15] <- -2.107
+    dParam[16] <- 0.860
+    dParam[27] <- -2.270
+    dParam[28] <- 0.569}
+  
   # Scale only specified demographic parameter
   dVec <- rep(1, length(dParam))
   dVec[dNum] <- dVal
@@ -264,7 +275,7 @@ demo.param <- function(dNum, dVal, CNFR = TRUE){
   return(dParam)}
 
 # Demography function for survival, reproduction, and more
-demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
+demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE){
   
   # Import vector of demographic parameters
   dParam <- dVec
@@ -316,9 +327,11 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
     if(species == "CA"){
       prob1 <- dParam[13] + dParam[14]*log(pi*(rsize/2)^2)}
     if(species == "CN"){
-      prob1 <- dParam[15] + dParam[16]*log(pi*(rsize/2)^2)}
+      prob1 <- dParam[15] + dParam[16]*log(pi*(rsize/2)^2)
+      if(CNFR == TRUE){
+        prob1 <- invlogit(prob1)}}
     prob0 <- 1 - prob1
-    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[,i])
+    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[, i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
     return(outcomes)}
   
@@ -344,9 +357,11 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
     if(species == "CA"){
       prob1 <- dParam[25] + dParam[26]*log(pi*(rsize/2)^2)}
     if(species == "CN"){
-      prob1 <- dParam[27] + dParam[28]*log(pi*(rsize/2)^2)}
+      prob1 <- dParam[27] + dParam[28]*log(pi*(rsize/2)^2)
+      if(CNFR == TRUE){
+        prob1 <- invlogit(prob1)}}
     prob0 <- 1 - prob1
-    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[,i])
+    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[, i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
     return(outcomes)}}
 
