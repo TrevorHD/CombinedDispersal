@@ -101,17 +101,17 @@ remove(ht_CN_NW, ht_CN_W, ht_CA_NW, ht_CA_W)
 
 ##### Get equations for survival --------------------------------------------------------------------------
 
-# Model survival rates as function of rosette size
-glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
+# Model survival rates as function of rosette size (area)
+glmer(Survival ~ log(pi*(DM_t/2)^2) + (1|Row/Group), family = "binomial",
       data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival)))
-glmer(Survival ~ DM_t + (1|Row/Group), family = "binomial",
+glmer(Survival ~ log(pi*(DM_t/2)^2) + (1|Row/Group), family = "binomial",
       data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival)))
 
 # There are far too few deaths for logistic models to be reliable!
 # Logistic regression or MLE would likely lead to small-sample bias
-plot(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival))$DM_T,
+plot(subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival))$DM_t,
      subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Survival))$Survival)
-plot(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival))$DM_T,
+plot(subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival))$DM_t,
      subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Survival))$Survival)
 
 # Thus, rates will be simply be estimated as a constant
@@ -126,10 +126,10 @@ surv_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & Survival == 1
 
 ##### Get equations for flowering -------------------------------------------------------------------------
 
-# Model flowering rates as function of rosette size
-glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
+# Model flowering rates as function of rosette size (area)
+glmer(F ~ log(pi*(DM_t/2)^2) + (1|Row/Group), family = "binomial",
       data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(F)))
-glmer(F ~ DM_t + (1|Row/Group), family = "binomial",
+glmer(F ~ log(pi*(DM_t/2)^2) + (1|Row/Group), family = "binomial",
       data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(F)))
 
 # There are far too few deaths for logistic models to be reliable!
@@ -151,19 +151,17 @@ flow_rs_CN <- nrow(subset(data_rs, Species == "CN" & TRT == "NW" & F == 1))/
 
 ##### Get equations for number of flower heads ------------------------------------------------------------
 
-# Model CN number of flower heads as a function of rosette size
+# Model CN number of flower heads as a function of rosette size (area)
 # Use AIC to make stepwise simplifications
-mod_head_CN <- lmer(Heads ~ DM_t + (1|Row/Group),
+mod_head_CN <- lmer(Heads ~ log(pi*(DM_t/2)^2) + (1|Row/Group),
                     data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
 step(mod_head_CN)
-mod_head_CN <- lmer(Heads ~ DM_t + (1|Group:Row),
-                    data = subset(data_rs, Species == "CN" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
 summary(mod_head_CN)
 mod_head_CN <- fixef(mod_head_CN)
 
-# Model CA number of flower heads as a function of rosette size
+# Model CA number of flower heads as a function of rosette size (area)
 # Use AIC to make stepwise simplifications
-mod_head_CA <- lmer(Heads ~ DM_t + (1|Row/Group),
+mod_head_CA <- lmer(Heads ~ log(pi*(DM_t/2)^2) + (1|Row/Group),
                     data = subset(data_rs, Species == "CA" & TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
 step(mod_head_CA)
 mod_head_CA <- lmer(Heads ~ (1|Group:Row),

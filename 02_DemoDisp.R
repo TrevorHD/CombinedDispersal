@@ -152,7 +152,7 @@ wald <- function(n, H, species, sVec){
   # Simulate wind dispersal if released above canopy
   if(H > h){
     
-    # Simulate wind speeds from empirical distribution of wind speeds
+    # Simulate wind speeds from Weibull distribution
     Um <- rweibull(n, sParam[2], sParam[3])
     
     # Simulate terminal velocities from lognormal distribution
@@ -164,7 +164,7 @@ wald <- function(n, H, species, sVec){
     # Calculate ustar, the friction velocity
     ustar <- K*Um*(log((zm - d)/z0))^(-1)
     
-    # Set up integrand for wind speed between vegetation surface and drop height H
+    # Set up integrand for wind speed between vegetation surface and seed release height H
     integrand <- function(z){
       (1/K)*(log((z - d)/z0))}
     
@@ -209,7 +209,10 @@ ant <- function(dist, sVec){
 ##### Set up functions for demography ---------------------------------------------------------------------
 
 # Demography function for collecting parameters into single vector
-demo.param <- function(dNum, dVal){
+demo.param <- function(dNum, dVal, CNFR = TRUE){
+  
+  # CNFR=True uses flat-rate survival and flowering for CN
+  # CNFR=FALSE uses survival and flowering as function of log rosette area
   
   # Prepare vector to store all demographic parameters
   dParam <- c()
@@ -224,13 +227,13 @@ demo.param <- function(dNum, dVal){
   dParam[7] <- 0.233                # Prob. of seed establishing from seed bank
   dParam[8] <- 0.260                # Prob. of seed survival in seed bank
   
-  # Parameters for initial rosette sizes (cm) after establishment
+  # Parameters for initial rosette diameter (cm) after establishment
   dParam[9] <- fits_rs_CA[1]        # Mean rosette size (CA)
   dParam[10] <- fits_rs_CA[2]       # SD rosette size (CA)
   dParam[11] <- fits_rs_CN[1]       # Mean rosette size (CN)
   dParam[12] <- fits_rs_CN[2]       # SD rosette size (CN)
   
-  # Parameters for flowering probability and head production as function of rosette size
+  # Parameters for flowering probability and head production as function of log rosette area
   dParam[13] <- flow_rs_CA          # Prob. flowering intercept (CA)
   dParam[14] <- 0                   # Prob. flowering slope, not applicable (CA)
   dParam[15] <- flow_rs_CN          # Prob. flowering intercept (CN)
@@ -246,7 +249,7 @@ demo.param <- function(dNum, dVal){
   dParam[23] <- fits_hd_CN_NW[1]    # Mean head height (CN)
   dParam[24] <- fits_hd_CN_NW[2]    # SD head height (CA)
   
-  # Parameters for survival probability of rosettes as function of rosette size
+  # Parameters for survival probability of rosettes as function of log rosette area
   dParam[25] <- surv_rs_CA          # Prob. survival intercept (CA)
   dParam[26] <- 0                   # Prob. survival slope, not applicable (CA)
   dParam[27] <- surv_rs_CN          # Prob. survival intercept (CN)
@@ -311,9 +314,9 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
   # Flowering probability as function of initial rosette size
   if(dType == "flowering"){
     if(species == "CA"){
-      prob1 <- dParam[13] + dParam[14]*rsize}
+      prob1 <- dParam[13] + dParam[14]*log(pi*(rsize/2)^2)}
     if(species == "CN"){
-      prob1 <- dParam[15] + dParam[16]*rsize}
+      prob1 <- dParam[15] + dParam[16]*log(pi*(rsize/2)^2)}
     prob0 <- 1 - prob1
     problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[,i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
@@ -323,9 +326,9 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
   # Round any non-integers up to the nearest head
   if(dType == "flowers"){
     if(species == "CA"){
-      head <- dParam[17] + dParam[18]*rsize}
+      head <- dParam[17] + dParam[18]*log(pi*(rsize/2)^2)}
     if(species == "CN"){
-      head <- dParam[19] + dParam[20]*rsize}
+      head <- dParam[19] + dParam[20]*log(pi*(rsize/2)^2)}
     return(ceiling(head))}
   
   # Distribution of flower heights for a given individual
@@ -339,9 +342,9 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0){
   # Rosette survival as function of initial rosette size
   if(dType == "survival"){
     if(species == "CA"){
-      prob1 <- dParam[25] + dParam[26]*rsize}
+      prob1 <- dParam[25] + dParam[26]*log(pi*(rsize/2)^2)}
     if(species == "CN"){
-      prob1 <- dParam[27] + dParam[28]*rsize}
+      prob1 <- dParam[27] + dParam[28]*log(pi*(rsize/2)^2)}
     prob0 <- 1 - prob1
     problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[,i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
