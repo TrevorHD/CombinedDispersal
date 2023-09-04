@@ -336,12 +336,13 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE)
     return(outcomes)}
   
   # Flower production as function of initial rosette size
-  # Round any non-integers up to the nearest head
+  # Round any non-integers up to the nearest head, and negatives up to 1
   if(dType == "flowers"){
     if(species == "CA"){
       head <- dParam[17] + dParam[18]*log(pi*(rsize/2)^2)}
     if(species == "CN"){
       head <- dParam[19] + dParam[20]*log(pi*(rsize/2)^2)}
+    head <- ifelse(head <= 0, 1, head)
     return(ceiling(head))}
   
   # Distribution of flower heights for a given individual

@@ -11,7 +11,7 @@ wave.sim <- function(dVec, sVec){
     toNest <- sample(c(0, 1), 1, prob = c(1 - toProb, toProb))
     ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
   
-  # Estimate dispersal distances from given point; assume 1m plant height  
+  # Estimate dispersal distances from given point
   kern <- function(n, h, species, sVec, d0 = 0){
     d <- wald(n, h, species, sVec) + d0
     return(d)}
