@@ -9,6 +9,7 @@ library(xlsx)
 library(gifski)
 library(lme4)
 library(lmerTest)
+library(sqldf)
 
 # Load in raw weather data
 data_ws1 <- read.csv("Data/Weather1.csv")
