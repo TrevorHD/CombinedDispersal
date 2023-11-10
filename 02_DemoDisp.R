@@ -346,12 +346,18 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE)
     return(ceiling(head))}
   
   # Distribution of flower heights for a given individual
+  # Cap min and max heights based on observational data from flower height experiment
+  # Round heights to nearest cm
   if(dType == "height"){
     if(species == "CA"){
-      height <- rnorm(n, mean = dParam[21], sd = dParam[22])/100}
+      height <- rnorm(n, mean = dParam[21], sd = dParam[22])/100
+      height[height < ht_min_CA/100] <- ht_min_CA/100
+      height[height > ht_max_CA/100] <- ht_max_CA/100}
     if(species == "CN"){
-      height <- rnorm(n, mean = dParam[23], sd = dParam[24])/100}
-    return(height)}
+      height <- rnorm(n, mean = dParam[23], sd = dParam[24])/100
+      height[height < ht_min_CN/100] <- ht_min_CN/100
+      height[height > ht_max_CN/100] <- ht_max_CN/100}
+    return(round(height, 2))}
   
   # Rosette survival as function of initial rosette size
   if(dType == "survival"){

@@ -3,6 +3,14 @@
 # Function to simulate invasion wave
 wave.sim <- function(dVec, sVec){
   
+  # Set up framework for parallel processing
+  cl <- makeCluster(detectCores() - 1, type = "PSOCK")
+  parallel::setDefaultCluster(cl)
+  clusterEvalQ(cl, {library(SuppDists)
+                    library(MASS)
+                    library(tidyverse)
+                    library(truncnorm)})
+    
   # Function to see if a seed is taken to the nearest nest
   nestsearch <- function(d, range, sVec){
     dists <- abs(d - nestsR)
@@ -16,6 +24,29 @@ wave.sim <- function(dVec, sVec){
     d <- wald(n, h, species, sVec) + d0
     return(d)}
   
+  #disp_index <- rep(1, length(opt_ht))
+  
+  # NEW: Estimate dispersal distances from given point
+  #kern <- function(n, h, species, sVec, disp = data_disp, d0 = 0){
+    
+    # Pull column index based on height
+    #ci <- h*100 - 15
+    
+    # Pull row index for given column
+    #index_h <- disp_index[ci]
+    
+    # Pull index:(index + n) from column and save distances, then advance index by n
+    # Also accounts for wrap-around
+    #if(index_h + n > 1000000){
+    #  dists <- c(disp[index_h:1000000, ci], disp[0:(index_h + n - 1000001), ci]) + d0
+    #  disp_index[ci] <<- index_h + n - 1000000
+    #} else {
+    #  dists <- disp[index_h:(index_h + n - 1), ci] + d0
+    #  disp_index[ci] <<- index_h + n}
+    
+    # Return distances
+    #return(dists)}
+  
   # Choose species to model
   species <- "CN"
   
@@ -25,7 +56,7 @@ wave.sim <- function(dVec, sVec){
   nDens <- 0.2      # Ant nest density (nests/m)
   nYear <- 1000     # Number of years to simulate
   trim <- TRUE      # Should core area of wave be trimmed?
-  trimAmt <- 1500   # Distance (m) behind wavefront to trim
+  trimAmt <- 1000   # Distance (m) behind wavefront to trim
   tDens <- 5        # Max thistle density per metre
   plotOn <- FALSE   # Plot wave?
   
@@ -75,7 +106,7 @@ wave.sim <- function(dVec, sVec){
     if(plotOn == TRUE){
       PlotList[[i]] <- plants$d}
     
-    # Remove rosettes that do not survive
+    # Simulate rosette survival and remove rosettes that do not survive
     # Never kill when only one rosette; prevents code from crashing
     if(nrow(plants) > 1){
       plants <- plants[demo("survival", species, dVec, rsize = plants$rsize) == 1, ]}
@@ -108,8 +139,9 @@ wave.sim <- function(dVec, sVec){
       f1 <- unlist(sapply(nflow, demo, dType = "height", species = species, dVec = dVec))
       s1 <- rep(demo("seeds", "CN", dVec), times = sum(nflow))
       d1 <- unlist(mapply(x = temp2$d, times = nflow, rep))
-      seedsNew <- as.vector(mapply(kern, n = s1, h = f1, d0 = d1,
-                                   MoreArgs = list(species = species, sVec = sVec)))
+      clusterExport(cl, c("kern", "wald", "s1", "f1", "d1", "species", "sVec"))
+      seedsNew <- unlist(clusterMap(cl, kern, n = s1, h = f1, d0 = d1,
+                                    MoreArgs = list(species = species, sVec = sVec)))
       seedsNew <- data.frame(cbind(seedsNew, rep(0, length(seedsNew))))
       names(seedsNew) <- c("d", "germ")}
     
@@ -126,7 +158,8 @@ wave.sim <- function(dVec, sVec){
     
     # Simulate secondary seed dispersal via ants
     if(nestOn == TRUE){
-      seedsAG$d <- sapply(seedsAG$d, nestsearch, range = range, sVec = sVec)}
+      clusterExport(cl, c("seedsAG", "nestsearch", "ant", "nestsR", "range", "sVec"))
+      seedsAG$d <- parSapply(cl, seedsAG$d, nestsearch, range = range, sVec = sVec)}
     
     # Store wavefront distance
     vals <- c(vals, max(plants$d))
@@ -240,3 +273,17 @@ generatePlots <- function(type = "hist"){
 save_gif(generatePlots("hist"), "Spread1.gif", delay = 0.3, width = 1280, height = 720, res = 144)
 save_gif(generatePlots("density"), "Spread2.gif", delay = 0.3, width = 1280, height = 720, res = 144)
 
+
+
+
+
+##### Simulate wavespeeds ---------------------------------------------------------------------------------
+
+# Set seed to ensure replicability
+set.seed(8675309)
+
+# Set counter for dispersal height index
+disp_index <- rep(1, length(opt_ht))
+
+# Test run code
+wave.base()

@@ -10,6 +10,10 @@ library(gifski)
 library(lme4)
 library(lmerTest)
 library(sqldf)
+library(parallel)
+
+# Set working directory
+setwd("~/GitHub/CombinedDispersal")
 
 # Load in raw weather data
 data_ws1 <- read.csv("Data/Weather1.csv")
