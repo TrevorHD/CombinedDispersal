@@ -20,14 +20,14 @@ wave.sim <- function(dVec, sVec){
     ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
   
   # Estimate dispersal distances from given point
-  kern <- function(n, h, species, sVec, d0 = 0){
-    d <- wald(n, h, species, sVec) + d0
+  kern <- function(n, h, sVec, d0 = 0){
+    d <- wald(n, h, sVec) + d0
     return(d)}
   
   #disp_index <- rep(1, length(opt_ht))
   
   # NEW: Estimate dispersal distances from given point
-  #kern <- function(n, h, species, sVec, disp = data_disp, d0 = 0){
+  #kern <- function(n, h, sVec, disp = data_disp, d0 = 0){
     
     # Pull column index based on height
     #ci <- h*100 - 15
@@ -46,9 +46,6 @@ wave.sim <- function(dVec, sVec){
     
     # Return distances
     #return(dists)}
-  
-  # Choose species to model
-  species <- "CN"
   
   # Set various parameters for wave model
   nestOn <- TRUE    # Should ant nests be included
@@ -70,7 +67,7 @@ wave.sim <- function(dVec, sVec){
       nests <- sample(seq(0, nYear*200, by = 0.1), nDens*nYear*200) + 0.01
       
       # Initialise data; start with a single rosette
-      plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", species, dVec, n = 1))
+      plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", dVec, n = 1))
       seedsAG <- data.frame(matrix(ncol = 2, nrow = 0))
       colnames(seedsAG) <- c("d", "germ")
       seedsSB <- data.frame(matrix(ncol = 2, nrow = 0))
@@ -79,7 +76,7 @@ wave.sim <- function(dVec, sVec){
     
     # Surviving above-ground seeds become rosettes
     seedsAG$stage <- rep(0, nrow(seedsAG))
-    seedsAG$rsize <- demo("rsize", species, dVec, n = nrow(seedsAG))
+    seedsAG$rsize <- demo("rsize", dVec, n = nrow(seedsAG))
     seedsAG <- seedsAG[, !names(seedsAG) == c("germ")]
     plants <- rbind(plants, seedsAG)
     
@@ -109,7 +106,7 @@ wave.sim <- function(dVec, sVec){
     # Simulate rosette survival and remove rosettes that do not survive
     # Never kill when only one rosette; prevents code from crashing
     if(nrow(plants) > 1){
-      plants <- plants[demo("survival", species, dVec, rsize = plants$rsize) == 1, ]}
+      plants <- plants[demo("survival", dVec, rsize = plants$rsize) == 1, ]}
     
     # Trim core areas as wave progresses to save computational resources
     if(trim == TRUE & nrow(plants) > 0){
@@ -118,16 +115,16 @@ wave.sim <- function(dVec, sVec){
       nestsR <- nests[nests > min(plants$d) & nests < max(plants$d) + 1000]}
     
     # Simulate bolting and flowering; individuals that don't will remain rosettes
-    plants$stage <- demo("flowering", species, dVec, rsize = plants$rsize)
+    plants$stage <- demo("flowering", dVec, rsize = plants$rsize)
     
     # Survival and establishment of seeds already in seed bank
     if(nrow(seedsSB) > 0){
-      seedsSB <- seedsSB[demo("surSB", species, dVec, n = nrow(seedsSB)) == 1, ]
+      seedsSB <- seedsSB[demo("surSB", dVec, n = nrow(seedsSB)) == 1, ]
       if(nrow(seedsSB) > 0){
-        vec <- demo("estSB", species, dVec, n = nrow(seedsSB))
+        vec <- demo("estSB", dVec, n = nrow(seedsSB))
         temp1 <- seedsSB[vec == 1, ]
         temp1$stage <- rep(0, nrow(temp1))
-        temp1$rsize <- demo("rsize", species, dVec, n = nrow(temp1))
+        temp1$rsize <- demo("rsize", dVec, n = nrow(temp1))
         temp1 <- temp1[, !names(temp1) == c("germ")]}
       plants <- na.omit(rbind(plants, temp1))
       seedsSB <- seedsSB[vec == 0, ]}
@@ -135,24 +132,24 @@ wave.sim <- function(dVec, sVec){
     # Simulate dispersal from flowering adults
     if(sum(plants$stage == 1) > 0){
       temp2 <- plants[plants$stage == 1, ]
-      nflow <- demo("flowers", species, dVec, rsize = temp2$rsize)
-      f1 <- unlist(sapply(nflow, demo, dType = "height", species = species, dVec = dVec))
-      s1 <- rep(demo("seeds", "CN", dVec), times = sum(nflow))
+      nflow <- demo("flowers", dVec, rsize = temp2$rsize)
+      f1 <- unlist(sapply(nflow, demo, dType = "height", dVec = dVec))
+      s1 <- rep(demo("seeds", dVec), times = sum(nflow))
       d1 <- unlist(mapply(x = temp2$d, times = nflow, rep))
-      clusterExport(cl, c("kern", "wald", "s1", "f1", "d1", "species", "sVec"))
+      clusterExport(cl, c("kern", "wald", "s1", "f1", "d1", "sVec"))
       seedsNew <- unlist(clusterMap(cl, kern, n = s1, h = f1, d0 = d1,
-                                    MoreArgs = list(species = species, sVec = sVec)))
+                                    MoreArgs = list(sVec = sVec)))
       seedsNew <- data.frame(cbind(seedsNew, rep(0, length(seedsNew))))
       names(seedsNew) <- c("d", "germ")}
     
     # Simulate aboveground establishment from dispersed seeds
-    seedsNew$germ <- demo("estAG", species, dVec, n = nrow(seedsNew))
+    seedsNew$germ <- demo("estAG", dVec, n = nrow(seedsNew))
     seedsAG <- na.omit(rbind(seedsAG, seedsNew[seedsNew$germ == 1, ]))
     seedsNew <- seedsNew[seedsNew$germ == 0, ]
     
     # Entry of non-establishing seeds into seed bank
     if(nrow(seedsNew) > 0){
-      seedsNew$germ <- demo("entSB", species, dVec, n = nrow(seedsNew))
+      seedsNew$germ <- demo("entSB", dVec, n = nrow(seedsNew))
       seedsSB <- na.omit(rbind(seedsSB, seedsNew[seedsNew$germ == 1, ]))
       seedsSB$germ <- rep(0, nrow(seedsSB))}
     

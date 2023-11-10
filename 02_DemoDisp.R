@@ -98,15 +98,13 @@ wald.param <- function(sNum, sVal){
   sParam <- c()
   
   # Set parameters for wind speed, seed terminal velocity, and vegetation height
-  sParam[1] <- 0.15                 # Vegetation heignt in m
+  sParam[1] <- 0.15                 # Vegetation height in m
   sParam[2] <- ws_params[1]         # Shape, wind speed Weibull dist.
   sParam[3] <- ws_params[2]         # Scale, wind speed Weibull dist.
-  sParam[4] <- tv_params_CA[1]      # Log mean terminal velocity, lognormal dist. (CA)
-  sParam[5] <- tv_params_CA[2]      # Log SD terminal velocity, lognormal dist. (CA)
-  sParam[6] <- tv_params_CN[1]      # Log mean terminal velocity, lognormal dist. (CN)
-  sParam[7] <- tv_params_CN[2]      # Log SD terminal velocity, lognormal dist. (CN)
-  sParam[8] <- an_params[1]         # Intercept, ant dispersal prob. as function of distance
-  sParam[9] <- an_params[2]         # Slope, ant dispersal prob. as function of distance
+  sParam[4] <- tv_params[1]         # Log mean terminal velocity, lognormal dist.
+  sParam[5] <- tv_params[2]         # Log SD terminal velocity, lognormal dist.
+  sParam[6] <- an_params[1]         # Intercept, ant dispersal prob. as function of distance
+  sParam[7] <- an_params[2]         # Slope, ant dispersal prob. as function of distance
   
   # Note: if transforming wind speeds, use sNum=2 for mean and sNum=3 for SD
   # Note: transformation on TV parameters transforms mean/SD, NOT log mean/SD
@@ -116,25 +114,21 @@ wald.param <- function(sNum, sVal){
     sParam[c(2, 3)] <- transform.wb(sParam[2], sParam[3], sVal, "mean")}
   if(sNum == 3){
     sParam[c(2, 3)] <- transform.wb(sParam[2], sParam[3], sVal, "sd")}
-  if(sNum == 4){
-    sParam[c(4, 5)] <- transform.ln(sParam[sNum], sParam[sNum + 1], sVal, "mean")}
-  if(sNum == 5){
-    sParam[c(4, 5)] <- transform.ln(sParam[sNum - 1], sParam[sNum], sVal, "sd")}
   if(sNum == 6){
-    sParam[c(6, 7)] <- transform.ln(sParam[sNum], sParam[sNum + 1], sVal, "mean")}
+    sParam[c(4, 5)] <- transform.ln(sParam[sNum], sParam[sNum + 1], sVal, "mean")}
   if(sNum == 7){
-    sParam[c(6, 7)] <- transform.ln(sParam[sNum - 1], sParam[sNum], sVal, "sd")}
+    sParam[c(4, 5)] <- transform.ln(sParam[sNum - 1], sParam[sNum], sVal, "sd")}
   if(sNum == 8){
-    sParam[8] <- sParam[8]*sVal}
+    sParam[6] <- sParam[6]*sVal}
   if(sNum == 9){
-    sParam[9] <- sParam[9]*sVal}
+    sParam[7] <- sParam[7]*sVal}
   
   # Return vector of dispersal parameters
   return(sParam)}
 
 # Function generating a dispersal kernel using WALD model (Katul et al. 2005)
 # Code adapted from Skarpaas and Shea (2007)
-wald <- function(n, H, species, sVec){
+wald <- function(n, H, sVec){
   
   # Import vector of dispersal parameters
   sParam <- sVec
@@ -160,10 +154,7 @@ wald <- function(n, H, species, sVec){
     Um <- rweibull(n, sParam[2], sParam[3])
     
     # Simulate terminal velocities from lognormal distribution
-    if(species == "CA"){
-      f <- rlnorm(n, sParam[4], sParam[5])}
-    if(species == "CN"){
-      f <- rlnorm(n, sParam[6], sParam[7])}
+    f <- rlnorm(n, sParam[4], sParam[5])
     
     # Calculate ustar, the friction velocity
     ustar <- K*Um*(log((zm - d)/z0))^(-1)
@@ -201,7 +192,7 @@ ant <- function(dist, sVec){
   sParam <- sVec
   
   # Calculate probability of seed removal
-  prob <- exp(sParam[8] + sParam[9]*dist)
+  prob <- exp(sParam[6] + sParam[7]*dist)
   
   # Return probability of seed removal
   return(prob)}
@@ -222,49 +213,37 @@ demo.param <- function(dNum, dVal, CNFR = TRUE){
   dParam <- c()
   
   # Parameters for seed production, survival, establishment, and seed bank dynamics
-  dParam[1] <- 83                   # Seeds per flower head (CA)
-  dParam[2] <- 160                  # Seeds per flower head (CN)
-  dParam[3] <- 0.136                # Prob. of establishment from seed (CA)
-  dParam[4] <- 0.147                # Prob. of establishment from seed (CN)
-  dParam[5] <- 0.90                 # Prob. of seed predation
-  dParam[6] <- 0.233                # Prob. of seed entering seed bank
-  dParam[7] <- 0.233                # Prob. of seed establishing from seed bank
-  dParam[8] <- 0.260                # Prob. of seed survival in seed bank
+  dParam[1] <- 160                  # Seeds per flower head
+  dParam[2] <- 0.147                # Prob. of establishment from seed
+  dParam[3] <- 0.90                 # Prob. of seed predation
+  dParam[4] <- 0.233                # Prob. of seed entering seed bank
+  dParam[5] <- 0.233                # Prob. of seed establishing from seed bank
+  dParam[6] <- 0.260                # Prob. of seed survival in seed bank
   
   # Parameters for initial rosette diameter (cm) after establishment
-  dParam[9] <- fits_rs_CA[1]        # Mean rosette size (CA)
-  dParam[10] <- fits_rs_CA[2]       # SD rosette size (CA)
-  dParam[11] <- fits_rs_CN[1]       # Mean rosette size (CN)
-  dParam[12] <- fits_rs_CN[2]       # SD rosette size (CN)
+  dParam[7] <- fits_rs[1]           # Mean rosette size
+  dParam[8] <- fits_rs[2]           # SD rosette size
   
   # Parameters for flowering probability and head production as function of log rosette area
-  dParam[13] <- flow_rs_CA          # Prob. flowering intercept (CA)
-  dParam[14] <- 0                   # Prob. flowering slope, not applicable (CA)
-  dParam[15] <- flow_rs_CN          # Prob. flowering intercept (CN)
-  dParam[16] <- 0                   # Prob. flowering slope, not applicable (CN)
-  dParam[17] <- mod_head_CA         # Num. heads intercept (CA)
-  dParam[18] <- 0                   # Num. heads slope, not applicable (CA)
-  dParam[19] <- mod_head_CN[1]      # Num. heads intercept (CN)
-  dParam[20] <- mod_head_CN[2]      # Num. heads slope (CN)
+  dParam[9] <- flow_rs              # Prob. flowering intercept
+  dParam[10] <- 0                   # Prob. flowering slope, not applicable
+  dParam[11] <- mod_head[1]         # Num. heads intercept
+  dParam[12] <- mod_head[2]         # Num. heads slope
   
   # Parameters for distribution of flower head heights among flowering individuals
-  dParam[21] <- fits_hd_CA_NW[1]    # Mean head height (CA)
-  dParam[22] <- fits_hd_CA_NW[2]    # SD head height (CA)
-  dParam[23] <- fits_hd_CN_NW[1]    # Mean head height (CN)
-  dParam[24] <- fits_hd_CN_NW[2]    # SD head height (CA)
+  dParam[13] <- fits_hd_NW[1]       # Mean head height
+  dParam[14] <- fits_hd_NW[2]       # SD head height
   
   # Parameters for survival probability of rosettes as function of log rosette area
-  dParam[25] <- surv_rs_CA          # Prob. survival intercept (CA)
-  dParam[26] <- 0                   # Prob. survival slope, not applicable (CA)
-  dParam[27] <- surv_rs_CN          # Prob. survival intercept (CN)
-  dParam[28] <- 0                   # Prob. survival slope, not applicable (CN)
+  dParam[15] <- surv_rs             # Prob. survival intercept
+  dParam[16] <- 0                   # Prob. survival slope, not applicable
   
   # Re-assign flowering and survival parameters when not using flat rates
   if(CNFR == FALSE){
-    dParam[15] <- -2.107
-    dParam[16] <- 0.860
-    dParam[27] <- -2.270
-    dParam[28] <- 0.569}
+    dParam[9] <- -2.107
+    dParam[10] <- 0.860
+    dParam[15] <- -2.270
+    dParam[16] <- 0.569}
   
   # Scale only specified demographic parameter
   dVec <- rep(1, length(dParam))
@@ -275,61 +254,48 @@ demo.param <- function(dNum, dVal, CNFR = TRUE){
   return(dParam)}
 
 # Demography function for survival, reproduction, and more
-demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE){
+demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE){
   
   # Import vector of demographic parameters
   dParam <- dVec
   
   # Per-head production of seeds, and subsequent seed survival
   if(dType == "seeds"){
-    if(species == "CA"){
-      nseed <- dParam[1]*(1 - dParam[5])}
-    if(species == "CN"){
-      nseed <- dParam[2]*(1 - dParam[5])}
+    nseed <- dParam[1]*(1 - dParam[3])
     return(round(nseed))}
   
   # Establishment of seeds that do not enter the seed bank
   if(dType == "estAG"){
-    if(species == "CA"){
-      prob <- dParam[3]}
-    if(species == "CN"){
-      prob <- dParam[4]}
+    prob <- dParam[2]
     outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
     return(outcomes)}
   
   # Entry of seeds into the seed bank
   if(dType == "entSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[6], 1 - dParam[6]), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[4], 1 - dParam[4]), replace = TRUE)
     return(outcomes)}
   
   # Establishment of seeds from the seed bank
   if(dType == "estSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[7], 1 - dParam[7]), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[5], 1 - dParam[5]), replace = TRUE)
     return(outcomes)}
   
   # Survival of seeds in the seed bank
   if(dType == "surSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[8], 1 - dParam[8]), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[6], 1 - dParam[6]), replace = TRUE)
     return(outcomes)}
   
   # Initial rosette size upon establishment
   if(dType == "rsize"){
-    if(species == "CA"){
-      ros <- rtruncnorm(n, a = min(na.omit(data_rs$DM_t)),
-                        mean = dParam[9], sd = dParam[10])}
-    if(species == "CN"){
-      ros <- rtruncnorm(n, a = min(na.omit(data_rs$DM_t)),
-                        mean = dParam[11], sd = dParam[12])}
+    ros <- rtruncnorm(n, a = min(na.omit(data_rs$DM_t)),
+                      mean = dParam[7], sd = dParam[8])
     return(ros)}
   
   # Flowering probability as function of initial rosette size
   if(dType == "flowering"){
-    if(species == "CA"){
-      prob1 <- dParam[13] + dParam[14]*log(pi*(rsize/2)^2)}
-    if(species == "CN"){
-      prob1 <- dParam[15] + dParam[16]*log(pi*(rsize/2)^2)
-      if(CNFR == TRUE){
-        prob1 <- invlogit(prob1)}}
+    prob1 <- dParam[9] + dParam[10]*log(pi*(rsize/2)^2)
+    if(CNFR == TRUE){
+      prob1 <- invlogit(prob1)}
     prob0 <- 1 - prob1
     problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[, i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
@@ -338,10 +304,7 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE)
   # Flower production as function of initial rosette size
   # Round any non-integers up to the nearest head, and negatives up to 1
   if(dType == "flowers"){
-    if(species == "CA"){
-      head <- dParam[17] + dParam[18]*log(pi*(rsize/2)^2)}
-    if(species == "CN"){
-      head <- dParam[19] + dParam[20]*log(pi*(rsize/2)^2)}
+    head <- dParam[11] + dParam[12]*log(pi*(rsize/2)^2)
     head <- ifelse(head <= 0, 1, head)
     return(ceiling(head))}
   
@@ -349,24 +312,16 @@ demo <- function(dType, species, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE)
   # Cap min and max heights based on observational data from flower height experiment
   # Round heights to nearest cm
   if(dType == "height"){
-    if(species == "CA"){
-      height <- rnorm(n, mean = dParam[21], sd = dParam[22])/100
-      height[height < ht_min_CA/100] <- ht_min_CA/100
-      height[height > ht_max_CA/100] <- ht_max_CA/100}
-    if(species == "CN"){
-      height <- rnorm(n, mean = dParam[23], sd = dParam[24])/100
-      height[height < ht_min_CN/100] <- ht_min_CN/100
-      height[height > ht_max_CN/100] <- ht_max_CN/100}
+    height <- rnorm(n, mean = dParam[13], sd = dParam[14])/100
+    height[height < ht_min/100] <- ht_min/100
+    height[height > ht_max/100] <- ht_max/100
     return(round(height, 2))}
   
   # Rosette survival as function of initial rosette size
   if(dType == "survival"){
-    if(species == "CA"){
-      prob1 <- dParam[25] + dParam[26]*log(pi*(rsize/2)^2)}
-    if(species == "CN"){
-      prob1 <- dParam[27] + dParam[28]*log(pi*(rsize/2)^2)
-      if(CNFR == TRUE){
-        prob1 <- invlogit(prob1)}}
+    prob1 <- dParam[15] + dParam[16]*log(pi*(rsize/2)^2)
+    if(CNFR == TRUE){
+      prob1 <- invlogit(prob1)}
     prob0 <- 1 - prob1
     problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[, i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
