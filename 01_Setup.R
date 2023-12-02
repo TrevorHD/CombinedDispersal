@@ -79,6 +79,10 @@ ks.test(ht_W$Height, pnorm, mean = fits_hd_W[1], sd = fits_hd_W[2])
 qqnorm(ht_W$Height)
 qqline(ht_W$Height)
 
+# Get minimum and maximum observed height
+ht_min <- min(subset(data_ht, Species == "CN", select = Height))
+ht_max <- max(subset(data_ht, Species == "CN", select = Height))
+
 # Remove variables that are no longer needed
 remove(ht_NW, ht_W)
 

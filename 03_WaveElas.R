@@ -24,28 +24,9 @@ wave.sim <- function(dVec, sVec){
     d <- wald(n, h, sVec) + d0
     return(d)}
   
-  #disp_index <- rep(1, length(opt_ht))
-  
-  # NEW: Estimate dispersal distances from given point
-  #kern <- function(n, h, sVec, disp = data_disp, d0 = 0){
-    
-    # Pull column index based on height
-    #ci <- h*100 - 15
-    
-    # Pull row index for given column
-    #index_h <- disp_index[ci]
-    
-    # Pull index:(index + n) from column and save distances, then advance index by n
-    # Also accounts for wrap-around
-    #if(index_h + n > 1000000){
-    #  dists <- c(disp[index_h:1000000, ci], disp[0:(index_h + n - 1000001), ci]) + d0
-    #  disp_index[ci] <<- index_h + n - 1000000
-    #} else {
-    #  dists <- disp[index_h:(index_h + n - 1), ci] + d0
-    #  disp_index[ci] <<- index_h + n}
-    
-    # Return distances
-    #return(dists)}
+  # Set changes to base parameters (1 if not doing sensitivity analysis)
+  dVec <- demo.param(dNum = 1, dVal = 1)
+  sVec <- wald.param(sNum = 1, sVal = 1)
   
   # Set various parameters for wave model
   nestOn <- TRUE    # Should ant nests be included
@@ -54,7 +35,7 @@ wave.sim <- function(dVec, sVec){
   nYear <- 1000     # Number of years to simulate
   trim <- TRUE      # Should core area of wave be trimmed?
   trimAmt <- 1000   # Distance (m) behind wavefront to trim
-  tDens <- 5        # Max thistle density per metre
+  tDens <- 10       # Max thistle density per metre
   plotOn <- FALSE   # Plot wave?
   
   # Run invasion wave simulation
@@ -167,6 +148,9 @@ wave.sim <- function(dVec, sVec){
     # Print procedure progress
     shell("cls")
     cat(paste0(i, "/", nYear, " (", round(i/nYear, 3)*100, "%) complete"))}
+  
+  # Close cluster
+  stopCluster(cl)
   
   # Return list of wavefront positions and all plant positions
   return(list(wavefront = vals, positions = PlotList))}
