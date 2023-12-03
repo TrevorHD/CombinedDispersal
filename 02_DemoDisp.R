@@ -151,7 +151,9 @@ wald <- function(n, H, sVec){
   if(H > h){
     
     # Simulate wind speeds from Weibull distribution
+    # Then marginalise onto single spatial axis, assuming no dominant wind direction
     Um <- rweibull(n, sParam[2], sParam[3])
+    Um <- Um*cos(runif(n, 0, 2*pi))
     
     # Simulate terminal velocities from lognormal distribution
     f <- rlnorm(n, sParam[4], sParam[5])

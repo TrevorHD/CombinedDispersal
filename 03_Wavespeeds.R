@@ -1,5 +1,9 @@
 ##### Simulate 1D expansion -------------------------------------------------------------------------------
 
+# Set changes to base parameters (1 if not doing sensitivity analysis)
+dVec <- demo.param(dNum = 1, dVal = 1)
+sVec <- wald.param(sNum = 1, sVal = 1)
+
 # Start system timer
 wv_time <- Sys.time()
 
@@ -23,10 +27,6 @@ nestsearch <- function(d, range, sVec){
 kern <- function(n, h, sVec, d0 = 0){
   d <- wald(n, h, sVec) + d0
   return(d)}
-
-# Set changes to base parameters (1 if not doing sensitivity analysis)
-dVec <- demo.param(dNum = 1, dVal = 1)
-sVec <- wald.param(sNum = 1, sVal = 1)
 
 # Set various parameters for wave model
 nestOn <- TRUE    # Should ant nests be included
@@ -163,3 +163,4 @@ shell("cls")
 cat(paste0("Procedure complete with ",
            round(as.numeric(difftime(Sys.time(), wv_time, units = "mins")), 2),
            " minutes elapsed"))
+
