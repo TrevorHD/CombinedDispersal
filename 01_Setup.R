@@ -10,6 +10,8 @@ library(gifski)
 library(lme4)
 library(lmerTest)
 library(sqldf)
+library(grid)
+library(gridBase)
 library(parallel)
 
 # Set working directory

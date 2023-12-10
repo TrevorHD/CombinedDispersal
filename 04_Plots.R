@@ -1,13 +1,24 @@
-##### Create animation of wave movement -------------------------------------------------------------------
+##### Create function to plot wavefront over time ---------------------------------------------------------
 
 # Function to generate GIF of population spread (nYear = 100 recommended)
-generatePlots <- function(type = "hist"){
+generatePlots <- function(type = "hist", snap = FALSE, snap_t = NULL, snap_bottom = FALSE){
   
-  # Set x-axis maximum based on wavefront at end of simulation
-  max_scale <- (ceiling(max(wv_plots[[length(wv_plots)]])/1000) + 1)*1000
+  # Set x-axis maximum based on wavefront at end of simulation (or a specified number if using snapshots)
+  # Set other graphical parameters based on whether or not there will be multiple adjacent plots
+  if(snap == FALSE){
+    max_scale <- (ceiling(max(wv_plots[[length(wv_plots)]])/1000) + 1)*1000}
+  if(snap == TRUE){
+    max_scale <- 3000}
+  xlab <- ifelse(snap_bottom == TRUE | snap == FALSE, "Distance (m)", "")
+  tsize <- ifelse(snap == FALSE, 1, 0.5)
+  
+  if(snap == FALSE){
+    plotSeq <- 1:length(wv_plots)}
+  if(snap == TRUE){
+    plotSeq <- snap_t}
   
   # Generate plot using position data at each timestep
-  for(i in 1:length(wv_plots)){
+  for(i in plotSeq){
     
     # Initialise vectors
     lower <- c()
@@ -24,26 +35,83 @@ generatePlots <- function(type = "hist"){
       if(min(positions) < 1){
         lower <- sort(lower)[-c(1:20)]}}
     
-    # Plot wave movement as histogram
+    # Plot wave movement as either histogram or density relative to maximum
     if(type == "hist"){
-      hist(c(lower, positions), breaks = seq(0, max_scale, by = 20), xlim = c(0, max_scale), ylim = c(0, 250),
-           xaxt = "n", yaxt = "n", xlab = "Distance (m)", ylab = "Count", main = "")
-      axis(1, at = seq(0, max_scale, 1000))
-      axis(2, at = seq(0, 500, 50))
-      text(x = max_scale*0.95, y = 230, paste0("t = ", i))
-      box()}
-    
-    # Plot wave movement as density relative to maximum
+      hist(c(lower, positions), breaks = seq(0, max_scale, by = 20), xlim = c(0, max_scale), ylim = c(0, 215),
+           xaxt = "n", yaxt = "n", xlab = NULL, ylab = "Count", main = "")
+      axis(2, at = seq(0, 200, 50))}
     if(type == "density"){
       plotdata <- hist(c(lower, positions), breaks = seq(0, max_scale, by = 20), plot = FALSE)
       plot(plotdata$mids, plotdata$density/max(plotdata$density),
-           type = "l", xlim = c(0, max_scale), ylim = c(0, 1.25),
-           xaxt = "n", yaxt = "n", xlab = "Distance (m)", ylab = "Relative Density", main = "")
+           type = "l", xlim = c(0, max_scale), ylim = c(0, 1.075),
+           xaxt = "n", yaxt = "n", xlab = "", ylab = "Relative Density", main = "")
+      axis(2, at = seq(0, 1, 0.25), labels = paste0(seq(0, 1, 0.25)*100, "%"))}
+    if(snap == FALSE){
       axis(1, at = seq(0, max_scale, 1000))
-      axis(2, at = seq(0, 1.25, 0.25))
-      text(x = max_scale*0.95, y = 1.15, paste0("t = ", i))}}}
+      title(xlab = xlab)}
+    if(snap == TRUE){
+      if(snap_bottom == FALSE){
+        axis(1, at = seq(0, max_scale, 1000), labels = FALSE)}
+      if(snap_bottom == TRUE){
+        axis(1, at = seq(0, max_scale, 1000), mgp = c(0, -0.1, 0))
+        title(xlab = xlab, mgp = c(0.5, 0, 0))}}
+    if(type == "hist"){
+      text(x = max_scale*0.95, y = 200, paste0("t = ", i), cex = tsize)
+      box()}
+    if(type == "density"){
+      text(x = max_scale*0.95, y = 1, paste0("t = ", i), cex = tsize)}}}
 
-# Generate GIFs of population spread
+    
+
+
+
+##### [F1] Plot snapshots of wave movement ---------------------------------------------------------
+
+# Prepare graphics device
+tiff(filename = "Figure 1.tif", width = 2000, height = 3000, units = "px",
+     res = 800, compression = "lzw")
+
+# Create blank page
+grid.newpage()
+plot.new()
+
+# Set grid layout and activate it
+gly <- grid.layout(2000, 600)
+pushViewport(viewport(layout = gly))
+
+# CN non-warmed: mean vs distribution
+pushViewport(vp = viewport(layout.pos.row = 1:500, layout.pos.col = 1:600))
+par(fig = gridFIG())
+par(new = TRUE, mar = c(0.6, 1.8, 0.4, 0.5), cex.axis = 0.45, cex.lab = 0.5,
+    tcl = -0.15, mgp = c(0.85, 0.2, 0))
+generatePlots(type = "density", snap = TRUE, snap_t = 10)
+popViewport()
+
+# CN warmed: mean vs distribution
+pushViewport(vp = viewport(layout.pos.row = 500:970, layout.pos.col = 1:600))
+par(fig = gridFIG())
+par(new = TRUE, mar = c(0.6, 1.8, 0.0, 0.5))
+generatePlots(type = "density", snap = TRUE, snap_t = 20)
+popViewport()
+
+# CA non-warmed: mean vs distribution
+pushViewport(vp = viewport(layout.pos.row = 975:1445, layout.pos.col = 1:600))
+par(fig = gridFIG())
+par(new = TRUE, mar = c(0.6, 1.8, 0.0, 0.5))
+generatePlots(type = "density", snap = TRUE, snap_t = 30)
+popViewport()
+
+# CA warmed: mean vs distribution
+pushViewport(vp = viewport(layout.pos.row = 1450:2000, layout.pos.col = 1:600))
+par(fig = gridFIG())
+par(new = TRUE, mar = c(1.5, 1.8, 0.0, 0.5))
+generatePlots(type = "density", snap = TRUE, snap_t = 40, snap_bottom = TRUE)
+popViewport()
+
+# Deactivate grid layout; finalise graphics save
+dev.off()
+
+# Generate GIFs of population spread (will be included in repo, but not publication)
 save_gif(generatePlots("hist"), "Spread1.gif", delay = 0.2, width = 1280, height = 720, res = 144)
 save_gif(generatePlots("density"), "Spread2.gif", delay = 0.2, width = 1280, height = 720, res = 144)
 
