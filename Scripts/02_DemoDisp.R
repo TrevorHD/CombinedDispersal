@@ -199,6 +199,19 @@ ant <- function(dist, sVec){
   # Return probability of seed removal
   return(prob)}
 
+# Function to see if a seed is taken to the nearest nest
+nestsearch <- function(d, range, sVec){
+  dists <- abs(d - nestsR)
+  centre <- nestsR[which.min(dists)]
+  toProb <- ant(min(dists), sVec)
+  toNest <- sample(c(0, 1), 1, prob = c(1 - toProb, toProb))
+  ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
+
+# Function to estimate dispersal distances from given point
+kern <- function(n, h, sVec, d0 = 0){
+  d <- wald(n, h, sVec) + d0
+  return(d)}
+
 
 
 
