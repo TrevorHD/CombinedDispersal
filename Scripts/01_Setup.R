@@ -174,3 +174,70 @@ lines(density(rlnorm(1000000, meanlog = tv_params[1], sdlog = tv_params[2])), co
 # Probability of seed removal as function of distance from nest
 an_params <- c(-0.56, -0.36)
 
+
+
+
+
+##### Create function to plot wavefronts over time --------------------------------------------------------
+
+# Function to generate GIF of population spread (nYear = 100 recommended)
+generatePlots <- function(type = "hist", snap = FALSE, snap_t = NULL, snap_bottom = FALSE){
+  
+  # Set x-axis maximum based on wavefront at end of simulation (or a specified number if using snapshots)
+  # Set other graphical parameters based on whether or not there will be multiple adjacent plots
+  if(snap == FALSE){
+    max_scale <- (ceiling(max(wv_plots[[length(wv_plots)]])/1000) + 1)*1000}
+  if(snap == TRUE){
+    max_scale <- 3000}
+  xlab <- ifelse(snap_bottom == TRUE | snap == FALSE, "Distance (m)", "")
+  tsize <- ifelse(snap == FALSE, 1, 0.5)
+  
+  if(snap == FALSE){
+    plotSeq <- 1:length(wv_plots)}
+  if(snap == TRUE){
+    plotSeq <- snap_t}
+  
+  # Generate plot using position data at each timestep
+  for(i in plotSeq){
+    
+    # Initialise vectors
+    lower <- c()
+    positions <- wv_plots[[i]]
+    if(length(positions) == 0){
+      positions <- 0}
+    
+    # Assume max density behind trimmed wavefront
+    # Trim condition here should match that used in the simulation
+    if(max(positions > 1000)){
+      minBin <- sum(positions > floor(min(positions)) & positions < ceiling(min(positions)))
+      lower <- c(rep(0:(floor(min(positions) - 1)), 10) + 0.01,
+                 rep(floor(min(positions)) + 0.01, 10 - minBin))
+      if(min(positions) < 1){
+        lower <- sort(lower)[-c(1:20)]}}
+    
+    # Plot wave movement as either histogram or density relative to maximum
+    if(type == "hist"){
+      hist(c(lower, positions), breaks = seq(0, max_scale, by = 20), xlim = c(0, max_scale), ylim = c(0, 215),
+           xaxt = "n", yaxt = "n", xlab = NULL, ylab = "Count", main = "")
+      axis(2, at = seq(0, 200, 50))}
+    if(type == "density"){
+      plotdata <- hist(c(lower, positions), breaks = seq(0, max_scale, by = 20), plot = FALSE)
+      plot(plotdata$mids, plotdata$density/max(plotdata$density),
+           type = "l", xlim = c(0, max_scale), ylim = c(0, 1.075),
+           xaxt = "n", yaxt = "n", xlab = "", ylab = "Relative Density", main = "")
+      axis(2, at = seq(0, 1, 0.25), labels = paste0(seq(0, 1, 0.25)*100, "%"))}
+    if(snap == FALSE){
+      axis(1, at = seq(0, max_scale, 1000))
+      title(xlab = xlab)}
+    if(snap == TRUE){
+      if(snap_bottom == FALSE){
+        axis(1, at = seq(0, max_scale, 1000), labels = FALSE)}
+      if(snap_bottom == TRUE){
+        axis(1, at = seq(0, max_scale, 1000), mgp = c(0, -0.1, 0))
+        title(xlab = xlab, mgp = c(0.5, 0, 0))}}
+    if(type == "hist"){
+      text(x = max_scale*0.95, y = 200, paste0("t = ", i), cex = tsize)
+      box()}
+    if(type == "density"){
+      text(x = max_scale*0.95, y = 1, paste0("t = ", i), cex = tsize)}}}
+
