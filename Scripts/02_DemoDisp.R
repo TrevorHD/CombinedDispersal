@@ -219,20 +219,17 @@ kern <- function(n, h, sVec, d0 = 0){
 ##### Set up functions for demography ---------------------------------------------------------------------
 
 # Demography function for collecting parameters into single vector
-demo.param <- function(dNum, dVal, CNFR = TRUE){
-  
-  # CNFR=True uses flat-rate survival and flowering for CN
-  # CNFR=FALSE uses survival and flowering as function of log rosette area
+demo.param <- function(dNum, dVal){
   
   # Prepare vector to store all demographic parameters
   dParam <- c()
   
   # Parameters for seed production, survival, establishment, and seed bank dynamics
   dParam[1] <- 160                  # Seeds per flower head
-  dParam[2] <- 0.147                # Prob. of establishment from seed
+  dParam[2] <- 0.233                # Prob. of establishment from seed (0.302 W)
   dParam[3] <- 0.90                 # Prob. of seed predation
   dParam[4] <- 0.233                # Prob. of seed entering seed bank
-  dParam[5] <- 0.233                # Prob. of seed establishing from seed bank
+  dParam[5] <- 0.233                # Prob. of seed establishing from seed bank (0.302 W)
   dParam[6] <- 0.260                # Prob. of seed survival in seed bank
   
   # Parameters for initial rosette diameter (cm) after establishment
@@ -240,25 +237,18 @@ demo.param <- function(dNum, dVal, CNFR = TRUE){
   dParam[8] <- fits_rs[2]           # SD rosette size
   
   # Parameters for flowering probability and head production as function of log rosette area
-  dParam[9] <- flow_rs              # Prob. flowering intercept
+  dParam[9] <- flow_rs_NW           # Prob. flowering intercept
   dParam[10] <- 0                   # Prob. flowering slope, not applicable
-  dParam[11] <- mod_head[1]         # Num. heads intercept
-  dParam[12] <- mod_head[2]         # Num. heads slope
+  dParam[11] <- mod_head_NW[1]      # Num. heads intercept
+  dParam[12] <- mod_head_NW[2]      # Num. heads slope
   
   # Parameters for distribution of flower head heights among flowering individuals
   dParam[13] <- fits_hd_NW[1]       # Mean head height
   dParam[14] <- fits_hd_NW[2]       # SD head height
   
   # Parameters for survival probability of rosettes as function of log rosette area
-  dParam[15] <- surv_rs             # Prob. survival intercept
+  dParam[15] <- surv_rs_NW          # Prob. survival intercept
   dParam[16] <- 0                   # Prob. survival slope, not applicable
-  
-  # Re-assign flowering and survival parameters when not using flat rates
-  if(CNFR == FALSE){
-    dParam[9] <- -2.107
-    dParam[10] <- 0.860
-    dParam[15] <- -2.270
-    dParam[16] <- 0.569}
   
   # Scale only specified demographic parameter
   dVec <- rep(1, length(dParam))
@@ -269,7 +259,7 @@ demo.param <- function(dNum, dVal, CNFR = TRUE){
   return(dParam)}
 
 # Demography function for survival, reproduction, and more
-demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE){
+demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0){
   
   # Import vector of demographic parameters
   dParam <- dVec
@@ -309,8 +299,6 @@ demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE){
   # Flowering probability as function of initial rosette size
   if(dType == "flowering"){
     prob1 <- dParam[9] + dParam[10]*log(pi*(rsize/2)^2)
-    if(CNFR == TRUE){
-      prob1 <- invlogit(prob1)}
     prob0 <- 1 - prob1
     problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[, i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
@@ -335,8 +323,6 @@ demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0, CNFR = TRUE){
   # Rosette survival as function of initial rosette size
   if(dType == "survival"){
     prob1 <- dParam[15] + dParam[16]*log(pi*(rsize/2)^2)
-    if(CNFR == TRUE){
-      prob1 <- invlogit(prob1)}
     prob0 <- 1 - prob1
     problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[, i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)

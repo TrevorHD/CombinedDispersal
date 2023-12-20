@@ -104,8 +104,10 @@ plot(subset(data_rs, TRT == "NW" & !is.na(Survival))$DM_t,
      subset(data_rs, TRT == "NW" & !is.na(Survival))$Survival)
 
 # Thus, rates will be simply be estimated as a constant
-surv_rs <- nrow(subset(data_rs, TRT == "NW" & Survival == 1))/
-           nrow(subset(data_rs, TRT == "NW" & !is.na(Survival)))
+surv_rs_NW <- nrow(subset(data_rs, TRT == "NW" & Survival == 1))/
+              nrow(subset(data_rs, TRT == "NW" & !is.na(Survival)))
+surv_rs_W <- nrow(subset(data_rs, TRT == "W" & Survival == 1))/
+             nrow(subset(data_rs, TRT == "W" & !is.na(Survival)))
 
 
 
@@ -123,8 +125,10 @@ plot(subset(data_rs, TRT == "NW" & !is.na(F))$DM_t,
      subset(data_rs, TRT == "NW" & !is.na(F))$F)
 
 # Thus, rates will be estimated independent of rosette size (i.e. as a constant)
-flow_rs <- nrow(subset(data_rs, TRT == "NW" & F == 1))/
-           nrow(subset(data_rs, TRT == "NW" & !is.na(F)))
+flow_rs_NW <- nrow(subset(data_rs, TRT == "NW" & F == 1))/
+              nrow(subset(data_rs, TRT == "NW" & !is.na(F)))
+flow_rs_W <- nrow(subset(data_rs, TRT == "W" & F == 1))/
+             nrow(subset(data_rs, TRT == "W" & !is.na(F)))
 
 
 
@@ -134,11 +138,18 @@ flow_rs <- nrow(subset(data_rs, TRT == "NW" & F == 1))/
 
 # Model number of flower heads as a function of rosette size (area)
 # Use AIC to make stepwise simplifications
-mod_head <- lmer(Heads ~ log(pi*(DM_t/2)^2) + (1|Row/Group),
-                 data = subset(data_rs, TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
-step(mod_head)
-summary(mod_head)
-mod_head <- fixef(mod_head)
+mod_head_NW <- lmer(Heads ~ log(pi*(DM_t/2)^2) + (1|Row/Group),
+                    data = subset(data_rs, TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
+step(mod_head_NW)
+summary(mod_head_NW)
+mod_head_NW <- fixef(mod_head_NW)
+
+# Do same as above, but for warmed plants
+mod_head_W <- lmer(Heads ~ log(pi*(DM_t/2)^2) + (1|Row/Group),
+                   data = subset(data_rs, TRT == "W" & !is.na(Heads) & !is.na(DM_t)))
+step(mod_head_W)
+summary(mod_head_W)
+mod_head_W <- fixef(mod_head_W)
 
 
 
