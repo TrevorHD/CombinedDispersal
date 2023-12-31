@@ -28,28 +28,41 @@ data_tv <- subset(data_tv, !is.na(drop.time))
 
 # Load height data as xlsx
 data_ht <- read.xlsx("Data/ThistleData.xlsx", sheetName = "Flowers")
+data_ht <- subset(data_ht, (Type == "f" | Type == "s") & Species == "CN" & TRT != "PW",
+                  select = -Type)
 
 # Load rosette as xlsx
 data_rs <- read.xlsx("Data/ThistleData.xlsx", sheetName = "General")
+data_rs <- subset(data_rs, Species == "CN" & TRT != "PW",
+                  select = -c(LLL_t, LLL_t1, OTC.On, OTC.Off, OTC.Notes))
 
-# Add survival indicator for rosettes that survived from transplant to summer
+# Rename rosette flowering column
+names(data_rs)[9] <- "Flowering"
+
+# Add survival indicator for rosettes that survived from establishment to summer
+# Survival for rosettes that did not establish will be listed as NA
 data_rs$Survival <- NA
-data_rs$Survival[!is.na(data_rs$DM_t) & !is.na(data_rs$F)] <- 1
-data_rs$Survival[!is.na(data_rs$DM_t) & is.na(data_rs$F)] <- 0
-
-# List survival for 372 as NA since the plant was accidentally killed while trimming
-data_rs$Survival[372] <- NA
+data_rs$Survival[!is.na(data_rs$DM_t) & !is.na(data_rs$DM_t1)] <- 1
+data_rs$Survival[!is.na(data_rs$DM_t) & is.na(data_rs$DM_t1)] <- 0
 
 # Get number of flowers per plant
 data_ht %>% 
-  subset(Type == "f" | Type == "s") %>% 
   group_by(Row, Group, Plant, TRT) %>% 
   summarise(Heads = n()) %>% 
   data.frame() -> heads
 data_rs <- merge(data_rs, heads, by = c("Row", "Group", "Plant"), all = TRUE)
-data_rs <- subset(data_rs, Species == "CN", select = -c(TRT.y))
+data_rs <- subset(data_rs, select = -c(TRT.y))
 names(data_rs)[5] <- "TRT"
 remove(heads)
+
+# Calculate plot averages for initial/final rosette size, survival, flowering, and head count
+data_rs %>% 
+  group_by(Row, Group, TRT) %>% 
+  summarise(DM_t_PA = mean(DM_t, na.rm = TRUE),
+            DM_t1_PA = mean(DM_t1, na.rm = TRUE),
+            Survival_PA = mean(Survival, na.rm = TRUE),
+            Flowering_PA = mean(Flowering, na.rm = TRUE),
+            Heads_PA = mean(Heads, na.rm = TRUE)) -> data_rs_PA
 
 
 
@@ -57,9 +70,13 @@ remove(heads)
 
 ##### Get mean and SD for initial rosette size distributions ----------------------------------------------
 
-# Get distribution of rosette sizes; is normally distributed
-fits_rs <- fitdistr(na.omit(data_rs$DM_t), "normal")$estimate
-ks.test(na.omit(data_rs$DM_t), pnorm, mean = fits_rs[1], sd = fits_rs[2])
+# Get distribution of initial rosette sizes; is approximately normally distributed
+fits_rs_NW <- fitdistr(subset(data_rs_PA, TRT == "NW")$DM_t_PA, "normal")$estimate
+ks.test(na.omit(data_rs_PA$DM_t_PA), pnorm, mean = fits_rs_NW[1], sd = fits_rs_NW[2])
+shapiro.test(subset(data_rs_PA, TRT == "NW")$DM_t_PA)
+fits_rs_W <- fitdistr(subset(data_rs_PA, TRT == "W")$DM_t_PA, "normal")$estimate
+ks.test(na.omit(data_rs_PA$DM_t_PA), pnorm, mean = fits_rs_W[1], sd = fits_rs_W[2])
+shapiro.test(subset(data_rs_PA, TRT == "W")$DM_t_PA)
 
 
 
@@ -71,19 +88,21 @@ ks.test(na.omit(data_rs$DM_t), pnorm, mean = fits_rs[1], sd = fits_rs[2])
 ht_NW <- subset(data_ht, TRT == "NW")
 ht_W <- subset(data_ht, TRT == "W")
 
-# Get distribution of flower heights
+# Get distribution of flower heights; is approximately normally distributed
 fits_hd_NW <- fitdistr(ht_NW$Height, "normal")$estimate
 ks.test(ht_NW$Height, pnorm, mean = fits_hd_NW[1], sd = fits_hd_NW[2])
+shapiro.test(ht_NW$Height)
 qqnorm(ht_NW$Height)
 qqline(ht_NW$Height)
 fits_hd_W <- fitdistr(ht_W$Height, "normal")$estimate
 ks.test(ht_W$Height, pnorm, mean = fits_hd_W[1], sd = fits_hd_W[2])
+shapiro.test(ht_W$Height)
 qqnorm(ht_W$Height)
 qqline(ht_W$Height)
 
 # Get minimum and maximum observed height
-ht_min <- min(subset(data_ht, Species == "CN", select = Height))
-ht_max <- max(subset(data_ht, Species == "CN", select = Height))
+ht_min <- min(data_ht$Height)
+ht_max <- max(data_ht$Height)
 
 # Remove variables that are no longer needed
 remove(ht_NW, ht_W)
@@ -94,20 +113,14 @@ remove(ht_NW, ht_W)
 
 ##### Get equations for survival --------------------------------------------------------------------------
 
-# Model survival rates as function of rosette size (area)
-glmer(Survival ~ log(pi*(DM_t/2)^2) + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, TRT == "NW" & !is.na(Survival)))
-
 # There are far too few deaths for logistic models to be reliable!
 # Logistic regression or MLE would likely lead to small-sample bias
-plot(subset(data_rs, TRT == "NW" & !is.na(Survival))$DM_t,
-     subset(data_rs, TRT == "NW" & !is.na(Survival))$Survival)
+plot(subset(data_rs_PA, TRT == "NW")$DM_t_PA, subset(data_rs_PA, TRT == "NW")$Survival_PA)
+plot(subset(data_rs_PA, TRT == "W")$DM_t_PA, subset(data_rs_PA, TRT == "W")$Survival_PA)
 
 # Thus, rates will be simply be estimated as a constant
-surv_rs_NW <- nrow(subset(data_rs, TRT == "NW" & Survival == 1))/
-              nrow(subset(data_rs, TRT == "NW" & !is.na(Survival)))
-surv_rs_W <- nrow(subset(data_rs, TRT == "W" & Survival == 1))/
-             nrow(subset(data_rs, TRT == "W" & !is.na(Survival)))
+surv_rs_NW <- mean(subset(data_rs_PA, TRT == "NW")$Survival_PA)
+surv_rs_W <- mean(subset(data_rs_PA, TRT == "W")$Survival_PA)
 
 
 
@@ -115,20 +128,14 @@ surv_rs_W <- nrow(subset(data_rs, TRT == "W" & Survival == 1))/
 
 ##### Get equations for flowering -------------------------------------------------------------------------
 
-# Model flowering rates as function of rosette size (area)
-glmer(F ~ log(pi*(DM_t/2)^2) + (1|Row/Group), family = "binomial",
-      data = subset(data_rs, TRT == "NW" & !is.na(F)))
-
 # There are far too few deaths for logistic models to be reliable!
 # Logistic regression or MLE would likely lead to small-sample bias
-plot(subset(data_rs, TRT == "NW" & !is.na(F))$DM_t,
-     subset(data_rs, TRT == "NW" & !is.na(F))$F)
+plot(subset(data_rs_PA, TRT == "NW")$DM_t1_PA, subset(data_rs_PA, TRT == "NW")$Flowering_PA)
+plot(subset(data_rs_PA, TRT == "W")$DM_t1_PA, subset(data_rs_PA, TRT == "W")$Flowering_PA)
 
-# Thus, rates will be estimated independent of rosette size (i.e. as a constant)
-flow_rs_NW <- nrow(subset(data_rs, TRT == "NW" & F == 1))/
-              nrow(subset(data_rs, TRT == "NW" & !is.na(F)))
-flow_rs_W <- nrow(subset(data_rs, TRT == "W" & F == 1))/
-             nrow(subset(data_rs, TRT == "W" & !is.na(F)))
+# Thus, rates will be simply be estimated as a constant
+flow_rs_NW <- mean(subset(data_rs_PA, TRT == "NW")$Flowering_PA)
+flow_rs_W <- mean(subset(data_rs_PA, TRT == "W")$Flowering_PA)
 
 
 
@@ -136,20 +143,35 @@ flow_rs_W <- nrow(subset(data_rs, TRT == "W" & F == 1))/
 
 ##### Get equations for number of flower heads ------------------------------------------------------------
 
-# Model number of flower heads as a function of rosette size (area)
-# Use AIC to make stepwise simplifications
-mod_head_NW <- lmer(Heads ~ log(pi*(DM_t/2)^2) + (1|Row/Group),
-                    data = subset(data_rs, TRT == "NW" & !is.na(Heads) & !is.na(DM_t)))
-step(mod_head_NW)
-summary(mod_head_NW)
-mod_head_NW <- fixef(mod_head_NW)
+# Model number of flower heads as a function of rosette size
+# Try 3 different proxies for size: diameter, diameter^2, and log(diameter)
+mod_head_NW_1 <- lmer(Heads_PA ~ DM_t1_PA + (1|Group), data = subset(data_rs_PA, TRT == "NW"))
+mod_head_NW_2 <- lmer(Heads_PA ~ DM_t1_PA^2 + (1|Group), data = subset(data_rs_PA, TRT == "NW"))
+mod_head_NW_3 <- lmer(Heads_PA ~ log(DM_t1_PA) + (1|Group), data = subset(data_rs_PA, TRT == "NW"))
 
-# Do same as above, but for warmed plants
-mod_head_W <- lmer(Heads ~ log(pi*(DM_t/2)^2) + (1|Row/Group),
-                   data = subset(data_rs, TRT == "W" & !is.na(Heads) & !is.na(DM_t)))
-step(mod_head_W)
-summary(mod_head_W)
-mod_head_W <- fixef(mod_head_W)
+# Select model with lowest AIC; model 3 performs the best
+# Stepwise selection indicates that we should keep the fixed effect
+AIC(mod_head_NW_1)
+AIC(mod_head_NW_2)
+AIC(mod_head_NW_3)
+step(mod_head_NW_3)
+summary(step(mod_head_NW_3))
+
+# Do same as above, but for warmed individuals; model 3 again performs the best
+# Stepwise selection again indicates that we should keep the fixed effect
+mod_head_W_1 <- lmer(Heads_PA ~ DM_t1_PA + (1|Group), data = subset(data_rs_PA, TRT == "W"))
+mod_head_W_2 <- lmer(Heads_PA ~ DM_t1_PA^2 + (1|Group), data = subset(data_rs_PA, TRT == "W"))
+mod_head_W_3 <- lmer(Heads_PA ~ log(DM_t1_PA) + (1|Group), data = subset(data_rs_PA, TRT == "W"))
+AIC(mod_head_W_1)
+AIC(mod_head_W_2)
+AIC(mod_head_W_3)
+step(mod_head_W_3)
+summary(step(mod_head_W_3))
+
+# Store fixed effects and remove unused variables
+mod_head_NW <- fixef(mod_head_NW_3)
+mod_head_W <- fixef(mod_head_W_3)
+remove(mod_head_NW_2, mod_head_NW_3, mod_head_W_2, mod_head_W_3)
 
 
 

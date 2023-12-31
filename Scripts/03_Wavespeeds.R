@@ -42,7 +42,7 @@ for(i in 1:nYear){
     colnames(seedsSB) <- c("d", "germ")
     wv_front <- c()}
   
-  # Surviving above-ground seeds become rosettes
+  # Simulate surviving above-ground seeds becoming rosettes
   seedsAG$stage <- rep(0, nrow(seedsAG))
   seedsAG$rsize <- demo("rsize", dVec, n = nrow(seedsAG))
   seedsAG <- seedsAG[, !names(seedsAG) == c("germ")]
@@ -72,9 +72,12 @@ for(i in 1:nYear){
     wv_plots[[i]] <- plants$d}
   
   # Simulate rosette survival and remove rosettes that do not survive
-  # Never kill when only one rosette; prevents code from crashing
+  # Never kill when only one plant, and reset another rosette at origin if no plants remain
+  # Both of these measures prevent the simulation from failing unexpectedly
   if(nrow(plants) > 1){
     plants <- plants[demo("survival", dVec, rsize = plants$rsize) == 1, ]}
+  if(nrow(plants) == 0)
+    plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", dVec, n = 1))
   
   # Trim core areas as wave progresses to save computational resources
   if(trim == TRUE & nrow(plants) > 0){
@@ -85,7 +88,7 @@ for(i in 1:nYear){
   # Simulate bolting and flowering; individuals that don't will remain rosettes
   plants$stage <- demo("flowering", dVec, rsize = plants$rsize)
   
-  # Survival and establishment of seeds already in seed bank
+  # Simulate survival, then establishment, of seeds already in seed bank
   if(nrow(seedsSB) > 0){
     seedsSB <- seedsSB[demo("surSB", dVec, n = nrow(seedsSB)) == 1, ]
     if(nrow(seedsSB) > 0){
@@ -94,8 +97,9 @@ for(i in 1:nYear){
       temp1$stage <- rep(0, nrow(temp1))
       temp1$rsize <- demo("rsize", dVec, n = nrow(temp1))
       temp1 <- temp1[, !names(temp1) == c("germ")]}
-    plants <- na.omit(rbind(plants, temp1))
-    seedsSB <- seedsSB[vec == 0, ]}
+    if(nrow(seedsSB) > 0){
+      seedsSB <- seedsSB[vec == 0, ]
+      plants <- na.omit(rbind(plants, temp1))}}
   
   # Simulate dispersal from flowering adults
   if(sum(plants$stage == 1) > 0){
@@ -115,7 +119,7 @@ for(i in 1:nYear){
   seedsAG <- na.omit(rbind(seedsAG, seedsNew[seedsNew$germ == 1, ]))
   seedsNew <- seedsNew[seedsNew$germ == 0, ]
   
-  # Entry of non-establishing seeds into seed bank
+  # Simulate entry of non-establishing seeds into seed bank
   if(nrow(seedsNew) > 0){
     seedsNew$germ <- demo("entSB", dVec, n = nrow(seedsNew))
     seedsSB <- na.omit(rbind(seedsSB, seedsNew[seedsNew$germ == 1, ]))

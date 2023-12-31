@@ -227,14 +227,14 @@ demo.param <- function(dNum, dVal){
   # Parameters for seed production, survival, establishment, and seed bank dynamics
   dParam[1] <- 160                  # Seeds per flower head
   dParam[2] <- 0.233                # Prob. of establishment from seed (0.302 W)
-  dParam[3] <- 0.90                 # Prob. of seed predation
+  dParam[3] <- 0.15 + (0.85*0.90)   # Prob. of seed predation (pre- plus post-dispersal)
   dParam[4] <- 0.233                # Prob. of seed entering seed bank
   dParam[5] <- 0.233                # Prob. of seed establishing from seed bank (0.302 W)
   dParam[6] <- 0.260                # Prob. of seed survival in seed bank
   
   # Parameters for initial rosette diameter (cm) after establishment
-  dParam[7] <- fits_rs[1]           # Mean rosette size
-  dParam[8] <- fits_rs[2]           # SD rosette size
+  dParam[7] <- fits_rs_NW[1]        # Mean rosette size
+  dParam[8] <- fits_rs_NW[2]        # SD rosette size
   
   # Parameters for flowering probability and head production as function of log rosette area
   dParam[9] <- flow_rs_NW           # Prob. flowering intercept
@@ -307,7 +307,7 @@ demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0){
   # Flower production as function of initial rosette size
   # Round any non-integers up to the nearest head, and negatives up to 1
   if(dType == "flowers"){
-    head <- dParam[11] + dParam[12]*log(pi*(rsize/2)^2)
+    head <- dParam[11] + dParam[12]*log(rsize)
     head <- ifelse(head <= 0, 1, head)
     return(ceiling(head))}
   
