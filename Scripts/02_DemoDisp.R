@@ -307,7 +307,7 @@ demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0){
   # Flower production as function of initial rosette size
   # Round any non-integers up to the nearest head, and negatives up to 1
   if(dType == "flowers"){
-    head <- dParam[11] + dParam[12]*log(rsize)
+    head <- dParam[11] + dParam[12]*log(pi*(rsize/2)^2)
     head <- ifelse(head <= 0, 1, head)
     return(ceiling(head))}
   

@@ -82,30 +82,7 @@ shapiro.test(subset(data_rs_PA, TRT == "W")$DM_t_PA)
 
 
 
-##### Get mean and SD for flower height distributions -----------------------------------------------------
-
-# Create vector of flower heights for each treatment group
-ht_NW <- subset(data_ht, TRT == "NW")
-ht_W <- subset(data_ht, TRT == "W")
-
-# Get distribution of flower heights; is approximately normally distributed
-fits_hd_NW <- fitdistr(ht_NW$Height, "normal")$estimate
-ks.test(ht_NW$Height, pnorm, mean = fits_hd_NW[1], sd = fits_hd_NW[2])
-shapiro.test(ht_NW$Height)
-qqnorm(ht_NW$Height)
-qqline(ht_NW$Height)
-fits_hd_W <- fitdistr(ht_W$Height, "normal")$estimate
-ks.test(ht_W$Height, pnorm, mean = fits_hd_W[1], sd = fits_hd_W[2])
-shapiro.test(ht_W$Height)
-qqnorm(ht_W$Height)
-qqline(ht_W$Height)
-
-# Get minimum and maximum observed height
-ht_min <- min(data_ht$Height)
-ht_max <- max(data_ht$Height)
-
-# Remove variables that are no longer needed
-remove(ht_NW, ht_W)
+##### Get equations for growth ----------------------------------------------------------------------------
 
 
 
@@ -144,34 +121,47 @@ flow_rs_W <- mean(subset(data_rs_PA, TRT == "W")$Flowering_PA)
 ##### Get equations for number of flower heads ------------------------------------------------------------
 
 # Model number of flower heads as a function of rosette size
-# Try 3 different proxies for size: diameter, diameter^2, and log(diameter)
-mod_head_NW_1 <- lmer(Heads_PA ~ DM_t1_PA + (1|Group), data = subset(data_rs_PA, TRT == "NW"))
-mod_head_NW_2 <- lmer(Heads_PA ~ DM_t1_PA^2 + (1|Group), data = subset(data_rs_PA, TRT == "NW"))
-mod_head_NW_3 <- lmer(Heads_PA ~ log(DM_t1_PA) + (1|Group), data = subset(data_rs_PA, TRT == "NW"))
-
-# Select model with lowest AIC; model 3 performs the best
-# Stepwise selection indicates that we should keep the fixed effect
-AIC(mod_head_NW_1)
-AIC(mod_head_NW_2)
-AIC(mod_head_NW_3)
-step(mod_head_NW_3)
-summary(step(mod_head_NW_3))
+# Then perform stepwise selection; keeping size effect minimises AIC
+mod_head_NW <- lmer(Heads_PA ~ log(pi*(DM_t1_PA/2)^2) + (1|Group), data = subset(data_rs_PA, TRT == "NW"))
+step(mod_head_NW)
+summary(mod_head_NW)
+mod_head_NW <- fixef(mod_head_NW)
 
 # Do same as above, but for warmed individuals; model 3 again performs the best
-# Stepwise selection again indicates that we should keep the fixed effect
-mod_head_W_1 <- lmer(Heads_PA ~ DM_t1_PA + (1|Group), data = subset(data_rs_PA, TRT == "W"))
-mod_head_W_2 <- lmer(Heads_PA ~ DM_t1_PA^2 + (1|Group), data = subset(data_rs_PA, TRT == "W"))
-mod_head_W_3 <- lmer(Heads_PA ~ log(DM_t1_PA) + (1|Group), data = subset(data_rs_PA, TRT == "W"))
-AIC(mod_head_W_1)
-AIC(mod_head_W_2)
-AIC(mod_head_W_3)
-step(mod_head_W_3)
-summary(step(mod_head_W_3))
+# Again, keeping size effect minimises AIC
+mod_head_W <- lmer(Heads_PA ~ log(pi*(DM_t1_PA/2)^2) + (1|Group), data = subset(data_rs_PA, TRT == "W"))
+step(mod_head_W)
+summary(mod_head_W)
+mod_head_W <- fixef(mod_head_W)
 
-# Store fixed effects and remove unused variables
-mod_head_NW <- fixef(mod_head_NW_3)
-mod_head_W <- fixef(mod_head_W_3)
-remove(mod_head_NW_2, mod_head_NW_3, mod_head_W_2, mod_head_W_3)
+
+
+
+
+##### Get mean and SD for flower height distributions -----------------------------------------------------
+
+# Create vector of flower heights for each treatment group
+ht_NW <- subset(data_ht, TRT == "NW")
+ht_W <- subset(data_ht, TRT == "W")
+
+# Get distribution of flower heights; is approximately normally distributed
+fits_hd_NW <- fitdistr(ht_NW$Height, "normal")$estimate
+ks.test(ht_NW$Height, pnorm, mean = fits_hd_NW[1], sd = fits_hd_NW[2])
+shapiro.test(ht_NW$Height)
+qqnorm(ht_NW$Height)
+qqline(ht_NW$Height)
+fits_hd_W <- fitdistr(ht_W$Height, "normal")$estimate
+ks.test(ht_W$Height, pnorm, mean = fits_hd_W[1], sd = fits_hd_W[2])
+shapiro.test(ht_W$Height)
+qqnorm(ht_W$Height)
+qqline(ht_W$Height)
+
+# Get minimum and maximum observed height
+ht_min <- min(data_ht$Height)
+ht_max <- max(data_ht$Height)
+
+# Remove variables that are no longer needed
+remove(ht_NW, ht_W)
 
 
 
