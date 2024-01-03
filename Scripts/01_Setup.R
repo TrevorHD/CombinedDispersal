@@ -169,11 +169,11 @@ flow_rs_W <- mean(subset(data_rs_PA, TRT == "W")$Flowering_PA)
 
 # Model flower head count as a function of rosette area at t0; include warming and interaction
 # Then perform stepwise selection to minimise AIC
-mod_head <- lmer(Heads_PA ~ area(DM_t_PA) + TRT + TRT:area(DM_t_PA) + (1|Group), data = data_rs_PA)
+mod_head <- lmer(Heads_PA ~ area(DM_t1_PA) + TRT + TRT:area(DM_t1_PA) + (1|Group), data = data_rs_PA)
 step(mod_head)
 
-# Dropping interaction term and warming term minimises AIC
-mod_head <- lmer(Heads_PA ~ area(DM_t_PA) + (1|Group), data = data_rs_PA)
+# Dropping interaction term minimises AIC
+mod_head <- lmer(Heads_PA ~ area(DM_t1_PA) + TRT + (1|Group), data = data_rs_PA)
 summary(mod_head)
 
 # Model assumes that residuals are normally distributed around zero; assumption holds up
@@ -188,7 +188,9 @@ plot(mod_head)
 # Store model coefficients
 # Get SD of errors to use as stochastic element in demographic simulations
 mod_head_err <- sd(resid(mod_head))
-mod_head <- fixef(mod_head)
+mod_head_NW <- fixef(mod_head)[c(1, 2)]
+mod_head_W <- fixef(mod_head)[c(1, 2)] + c(fixef(mod_head)[3], 0)
+remove(mod_head)
 
 
 
