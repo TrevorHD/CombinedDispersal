@@ -64,25 +64,72 @@ data_rs %>%
             Flowering_PA = mean(Flowering, na.rm = TRUE),
             Heads_PA = mean(Heads, na.rm = TRUE)) -> data_rs_PA
 
+# Create function to calculate rosette area
+area <- function(diam){
+  return(log(pi*(diam/2)^2))}
+
 
 
 
 
 ##### Get mean and SD for initial rosette size distributions ----------------------------------------------
 
-# Get distribution of initial rosette sizes; is approximately normally distributed
-fits_rs_NW <- fitdistr(subset(data_rs_PA, TRT == "NW")$DM_t_PA, "normal")$estimate
-ks.test(na.omit(data_rs_PA$DM_t_PA), pnorm, mean = fits_rs_NW[1], sd = fits_rs_NW[2])
-shapiro.test(subset(data_rs_PA, TRT == "NW")$DM_t_PA)
-fits_rs_W <- fitdistr(subset(data_rs_PA, TRT == "W")$DM_t_PA, "normal")$estimate
-ks.test(na.omit(data_rs_PA$DM_t_PA), pnorm, mean = fits_rs_W[1], sd = fits_rs_W[2])
-shapiro.test(subset(data_rs_PA, TRT == "W")$DM_t_PA)
+# Model rosette area at t1 as a function of rosette area at t0; include warming and interaction
+# Then perform stepwise selection to minimise AIC
+mod_rose <- lmer(area(DM_t_PA) ~ TRT + (1|Group), data = data_rs_PA)
+step(mod_rose)
+
+# Dropping iwarming term minimises AIC; initial area is normally-distributed constant
+mod_rose <- lmer(area(DM_t_PA) ~ (1|Group), data = data_rs_PA)
+summary(mod_rose)
+
+# Normally-distributed constant seems like a suitable approximation
+plot(density(data_rs_PA$DM_t_PA))
+
+# Model assumes that residuals are normally distributed around zero; assumption holds up
+# Shapiro test can be sensitive to distribution tails, so take p-value witha grain of salt
+# No patterns or heteroskedasticity in residuals also indicates reasonable fit
+ks.test(resid(mod_rose), pnorm, mean = 0, sd = sd(resid(mod_rose)))
+shapiro.test(resid(mod_rose))
+plot(density(resid(mod_rose)))
+qqnorm(resid(mod_rose))
+qqline(resid(mod_rose))
+plot(mod_rose)
+
+# Store model coefficients
+# Get SD of errors to use as stochastic element in demographic simulations
+mod_rose_err <- sd(resid(mod_rose))
+mod_rose <- fixef(mod_rose)
 
 
 
 
 
 ##### Get equations for growth ----------------------------------------------------------------------------
+
+# Model rosette area at t1 as a function of rosette area at t0; include warming and interaction
+# Then perform stepwise selection to minimise AIC
+mod_grow <- lmer(area(DM_t1_PA) ~ area(DM_t_PA) + TRT + TRT:area(DM_t_PA) + (1|Group), data = data_rs_PA)
+step(mod_grow)
+
+# Dropping interaction term minimises AIC
+mod_grow <- lmer(area(DM_t1_PA) ~ area(DM_t_PA) + TRT + (1|Group), data = data_rs_PA)
+summary(mod_grow)
+
+# Model assumes that residuals are normally distributed around zero; assumption holds up
+# No patterns or heteroskedasticity in residuals also indicates reasonable fit
+ks.test(resid(mod_grow), pnorm, mean = 0, sd = sd(resid(mod_grow)))
+shapiro.test(resid(mod_grow))
+plot(density(resid(mod_grow)))
+qqnorm(resid(mod_grow))
+qqline(resid(mod_grow))
+plot(mod_grow)
+
+# Store model coefficients
+# Get SD of errors to use as stochastic element in demographic simulations
+mod_grow_err <- sd(resid(mod_grow))
+mod_grow_NW <- fixef(mod_grow)[c(1, 2)]
+mod_grow_W <- fixef(mod_grow)[c(1, 2)] + c(fixef(mod_grow)[3], 0)
 
 
 
@@ -120,19 +167,28 @@ flow_rs_W <- mean(subset(data_rs_PA, TRT == "W")$Flowering_PA)
 
 ##### Get equations for number of flower heads ------------------------------------------------------------
 
-# Model number of flower heads as a function of rosette size
-# Then perform stepwise selection; keeping size effect minimises AIC
-mod_head_NW <- lmer(Heads_PA ~ log(pi*(DM_t1_PA/2)^2) + (1|Group), data = subset(data_rs_PA, TRT == "NW"))
-step(mod_head_NW)
-summary(mod_head_NW)
-mod_head_NW <- fixef(mod_head_NW)
+# Model flower head count as a function of rosette area at t0; include warming and interaction
+# Then perform stepwise selection to minimise AIC
+mod_head <- lmer(Heads_PA ~ area(DM_t_PA) + TRT + TRT:area(DM_t_PA) + (1|Group), data = data_rs_PA)
+step(mod_head)
 
-# Do same as above, but for warmed individuals; model 3 again performs the best
-# Again, keeping size effect minimises AIC
-mod_head_W <- lmer(Heads_PA ~ log(pi*(DM_t1_PA/2)^2) + (1|Group), data = subset(data_rs_PA, TRT == "W"))
-step(mod_head_W)
-summary(mod_head_W)
-mod_head_W <- fixef(mod_head_W)
+# Dropping interaction term and warming term minimises AIC
+mod_head <- lmer(Heads_PA ~ area(DM_t_PA) + (1|Group), data = data_rs_PA)
+summary(mod_head)
+
+# Model assumes that residuals are normally distributed around zero; assumption holds up
+# No patterns or heteroskedasticity in residuals also indicates reasonable fit
+ks.test(resid(mod_head), pnorm, mean = 0, sd = sd(resid(mod_head)))
+shapiro.test(resid(mod_head))
+plot(density(resid(mod_head)))
+qqnorm(resid(mod_head))
+qqline(resid(mod_head))
+plot(mod_head)
+
+# Store model coefficients
+# Get SD of errors to use as stochastic element in demographic simulations
+mod_head_err <- sd(resid(mod_head))
+mod_head <- fixef(mod_head)
 
 
 
