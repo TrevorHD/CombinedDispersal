@@ -233,22 +233,26 @@ demo.param <- function(dNum, dVal){
   dParam[6] <- 0.260                # Prob. of seed survival in seed bank
   
   # Parameters for initial rosette diameter (cm) after establishment
-  dParam[7] <- fits_rs_NW[1]        # Mean rosette size
-  dParam[8] <- fits_rs_NW[2]        # SD rosette size
+  dParam[7] <- mod_rose             # Mean rosette size intercept
+  dParam[8] <- mod_rose_err         # Mean rosette size SD
+  
+  # Parameters for rosette growth
+  dParam[9] <- mod_grow_NW[1]       # Mean growth intercept
+  dParam[10] <- mod_grow_NW[2]      # Mean growth size-slope
+  dParam[11] <- mod_grow_err        # Mean growth SD
   
   # Parameters for flowering probability and head production as function of log rosette area
-  dParam[9] <- flow_rs_NW           # Prob. flowering intercept
-  dParam[10] <- 0                   # Prob. flowering slope, not applicable
-  dParam[11] <- mod_head_NW[1]      # Num. heads intercept
-  dParam[12] <- mod_head_NW[2]      # Num. heads slope
+  dParam[12] <- flow_rs_NW          # Prob. flowering
+  dParam[13] <- mod_head_NW[1]      # Mean num. heads intercept
+  dParam[14] <- mod_head_NW[2]      # Mean num. heads size-slope
+  dParam[15] <- mod_head_err        # Mean num. heads SD
   
   # Parameters for distribution of flower head heights among flowering individuals
-  dParam[13] <- fits_hd_NW[1]       # Mean head height
-  dParam[14] <- fits_hd_NW[2]       # SD head height
+  dParam[16] <- fits_hd_NW[1]       # Mean head height
+  dParam[17] <- fits_hd_NW[2]       # SD head height
   
   # Parameters for survival probability of rosettes as function of log rosette area
-  dParam[15] <- surv_rs_NW          # Prob. survival intercept
-  dParam[16] <- 0                   # Prob. survival slope, not applicable
+  dParam[18] <- surv_rs_NW          # Prob. survival
   
   # Scale only specified demographic parameter
   dVec <- rep(1, length(dParam))
@@ -292,22 +296,25 @@ demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0){
   
   # Initial rosette size upon establishment
   if(dType == "rsize"){
-    ros <- rtruncnorm(n, a = min(na.omit(data_rs$DM_t)),
-                      mean = dParam[7], sd = dParam[8])
+    ros <- dParam[7] + rnorm(n, mean = 0, sd = dParam[8])
     return(ros)}
+  
+  # Rosette growth from t0 to t1
+  if(dType == "grow"){
+    size <- dParam[9] + dParam[10]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[11])
+    return(size)}
   
   # Flowering probability as function of initial rosette size
   if(dType == "flowering"){
-    prob1 <- dParam[9] + dParam[10]*log(pi*(rsize/2)^2)
-    prob0 <- 1 - prob1
-    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[, i])
+    prob1 <- dParam[12]
+    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, 1 - prob1)[, i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
     return(outcomes)}
   
   # Flower production as function of initial rosette size
   # Round any non-integers up to the nearest head, and negatives up to 1
   if(dType == "flowers"){
-    head <- dParam[11] + dParam[12]*log(pi*(rsize/2)^2)
+    head <- dParam[13] + dParam[14]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[15])
     head <- ifelse(head <= 0, 1, head)
     return(ceiling(head))}
   
@@ -315,16 +322,15 @@ demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0){
   # Cap min and max heights based on observational data from flower height experiment
   # Round heights to nearest cm
   if(dType == "height"){
-    height <- rnorm(n, mean = dParam[13], sd = dParam[14])/100
+    height <- rnorm(n, mean = dParam[16], sd = dParam[17])/100
     height[height < ht_min/100] <- ht_min/100
     height[height > ht_max/100] <- ht_max/100
     return(round(height, 2))}
   
   # Rosette survival as function of initial rosette size
   if(dType == "survival"){
-    prob1 <- dParam[15] + dParam[16]*log(pi*(rsize/2)^2)
-    prob0 <- 1 - prob1
-    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, prob0)[, i])
+    prob1 <- dParam[18]
+    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, 1 - prob1)[, i])
     outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
     return(outcomes)}}
 

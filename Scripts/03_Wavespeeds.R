@@ -79,6 +79,10 @@ for(i in 1:nYear){
   if(nrow(plants) == 0)
     plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", dVec, n = 1))
   
+  # Simulate rosette growth
+  if(nrow(plants) > 1){
+    plants$rsize = demo("grow", dVec, rsize = plants$rsize)}
+  
   # Trim core areas as wave progresses to save computational resources
   if(trim == TRUE & nrow(plants) > 0){
     plants <- plants[plants$d > max(plants$d) - trimAmt, ]

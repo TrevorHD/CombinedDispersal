@@ -130,6 +130,7 @@ plot(mod_grow)
 mod_grow_err <- sd(resid(mod_grow))
 mod_grow_NW <- fixef(mod_grow)[c(1, 2)]
 mod_grow_W <- fixef(mod_grow)[c(1, 2)] + c(fixef(mod_grow)[3], 0)
+remove(mod_grow)
 
 
 
