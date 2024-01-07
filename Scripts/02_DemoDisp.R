@@ -151,9 +151,7 @@ wald <- function(n, H, sVec){
   if(H > h){
     
     # Simulate wind speeds from Weibull distribution
-    # Then marginalise onto single spatial axis, assuming no dominant wind direction
     Um <- rweibull(n, sParam[2], sParam[3])
-    Um <- Um*cos(runif(n, 0, 2*pi))
     
     # Simulate terminal velocities from lognormal distribution
     f <- rlnorm(n, sParam[4], sParam[5])
@@ -178,9 +176,8 @@ wald <- function(n, H, sVec){
     nu <- H*U/f
     
     # Generate inverse Gaussian distribution
-    # Generate more than n to deal with NAs and then cut down to n
-    nInc <- ifelse(n == 1, 3, 2)
-    dists <- as.numeric(na.omit(rinvGauss(n*nInc, nu = nu, lambda = lambda)))
+    # Then marginalise onto single spatial axis, assuming no dominant wind direction
+    dists <- as.numeric(rinvGauss(n, nu = nu, lambda = lambda))*cos(runif(n, 0, 2*pi))
     return(dists[1:n])}
   
   # No dispersal if released below canopy
@@ -271,12 +268,11 @@ demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0){
   # Per-head production of seeds, and subsequent seed survival
   if(dType == "seeds"){
     nseed <- dParam[1]*(1 - dParam[3])
-    return(round(nseed))}
+    return(ceiling(nseed))}
   
   # Establishment of seeds that do not enter the seed bank
   if(dType == "estAG"){
-    prob <- dParam[2]
-    outcomes <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[2], 1 - dParam[2]), replace = TRUE)
     return(outcomes)}
   
   # Entry of seeds into the seed bank

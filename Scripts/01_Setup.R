@@ -74,12 +74,12 @@ area <- function(diam){
 
 ##### Get mean and SD for initial rosette size distributions ----------------------------------------------
 
-# Model rosette area at t1 as a function of rosette area at t0; include warming and interaction
+# Model initial rosette size at establishment as function of warming treatment
 # Then perform stepwise selection to minimise AIC
 mod_rose <- lmer(area(DM_t_PA) ~ TRT + (1|Group), data = data_rs_PA)
 step(mod_rose)
 
-# Dropping iwarming term minimises AIC; initial area is normally-distributed constant
+# Dropping warming term minimises AIC; initial area is normally-distributed constant
 mod_rose <- lmer(area(DM_t_PA) ~ (1|Group), data = data_rs_PA)
 summary(mod_rose)
 
@@ -87,7 +87,7 @@ summary(mod_rose)
 plot(density(data_rs_PA$DM_t_PA))
 
 # Model assumes that residuals are normally distributed around zero; assumption holds up
-# Shapiro test can be sensitive to distribution tails, so take p-value witha grain of salt
+# Shapiro test can be sensitive to distribution tails, so take p-value with a grain of salt
 # No patterns or heteroskedasticity in residuals also indicates reasonable fit
 ks.test(resid(mod_rose), pnorm, mean = 0, sd = sd(resid(mod_rose)))
 shapiro.test(resid(mod_rose))
@@ -95,6 +95,12 @@ plot(density(resid(mod_rose)))
 qqnorm(resid(mod_rose))
 qqline(resid(mod_rose))
 plot(mod_rose)
+
+# Error SD does not seem to be significantly different between warmed/unwarmed
+plot(density(resid(mod_rose)[which(data_rs_PA$TRT == "NW")]))
+lines(density(resid(mod_rose)[which(data_rs_PA$TRT == "W")]), col = "red")
+var.test(resid(mod_rose)[which(data_rs_PA$TRT == "NW")],
+         resid(mod_rose)[which(data_rs_PA$TRT == "W")])
 
 # Store model coefficients
 # Get SD of errors to use as stochastic element in demographic simulations
@@ -124,6 +130,12 @@ plot(density(resid(mod_grow)))
 qqnorm(resid(mod_grow))
 qqline(resid(mod_grow))
 plot(mod_grow)
+
+# Error SD does not seem to be significantly different between warmed/unwarmed
+plot(density(resid(mod_grow)[which(data_rs_PA$TRT == "NW")]))
+lines(density(resid(mod_grow)[which(data_rs_PA$TRT == "W")]), col = "red")
+var.test(resid(mod_grow)[which(data_rs_PA$TRT == "NW")],
+         resid(mod_grow)[which(data_rs_PA$TRT == "W")])
 
 # Store model coefficients
 # Get SD of errors to use as stochastic element in demographic simulations
@@ -185,6 +197,12 @@ plot(density(resid(mod_head)))
 qqnorm(resid(mod_head))
 qqline(resid(mod_head))
 plot(mod_head)
+
+# Error SD does not seem to be significantly different between warmed/unwarmed
+plot(density(resid(mod_head)[which(data_rs_PA$TRT == "NW")]))
+lines(density(resid(mod_head)[which(data_rs_PA$TRT == "W")]), col = "red")
+var.test(resid(mod_head)[which(data_rs_PA$TRT == "NW")],
+         resid(mod_head)[which(data_rs_PA$TRT == "W")])
 
 # Store model coefficients
 # Get SD of errors to use as stochastic element in demographic simulations

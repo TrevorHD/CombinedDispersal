@@ -80,7 +80,7 @@ for(i in 1:nYear){
     plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", dVec, n = 1))
   
   # Simulate rosette growth
-  if(nrow(plants) > 1){
+  if(nrow(plants) > 0){
     plants$rsize = demo("grow", dVec, rsize = plants$rsize)}
   
   # Trim core areas as wave progresses to save computational resources
@@ -116,7 +116,8 @@ for(i in 1:nYear){
     seedsNew <- unlist(clusterMap(cl, kern, n = s1, h = f1, d0 = d1,
                                   MoreArgs = list(sVec = sVec)))
     seedsNew <- data.frame(cbind(seedsNew, rep(0, length(seedsNew))))
-    names(seedsNew) <- c("d", "germ")}
+    names(seedsNew) <- c("d", "germ")
+    seedsNew <- seedsNew[seedsNew$d >= 0, ]}
   
   # Simulate aboveground establishment from dispersed seeds
   seedsNew$germ <- demo("estAG", dVec, n = nrow(seedsNew))
