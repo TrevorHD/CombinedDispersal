@@ -1,94 +1,3 @@
-##### Set up functions for distribution transformations ---------------------------------------------------
-
-# Function to transform raw variance and/or mean, then output corresponding shape and scale
-transform.wb <- function(shape, scale, fv, which.trans){
-  
-  # Internal functions to calculate mean and SD of Weibull distribution
-  meanW <- function(shape, scale){
-    return(scale*gamma(1 + 1/shape))}
-  sdW <- function(shape, scale){
-    return(sqrt((scale^2)*(gamma(1 + 2/shape) - gamma(1 + 1/shape)^2)))}
-  
-  # Must brute force a solution since there is no easy function for inverse gamma
-  
-  # Create meshpoints for combinations of shape and scale
-  scaleAxis <- seq(0.1, 5, by = 0.005)
-  shapeAxis <- seq(0.1, 5, by = 0.005)
-  scaleMesh = rep(scaleAxis, each = length(shapeAxis))
-  shapeMesh = rep(shapeAxis, times = length(scaleAxis))
-  
-  # Let fv be the value that the mean and/or standard deviation is multiplied by
-  
-  # Conditional statements for the variable(s) to be transformed
-  if(which.trans == "mean"){
-    fm <- fv
-    fs <- 1}
-  if(which.trans == "sd"){
-    fm <- 1
-    fs <- fv}
-  if(which.trans == "both"){
-    fm <- fv
-    fs <- fv}
-  
-  # Transform variables
-  newMean = meanW(shape = shape, scale = scale)*fm
-  newSD = sdW(shape = shape, scale = scale)*fs
-  
-  # Evaluate mean and SD for at meshpoints
-  # Then calculate difference between estimated and supplied mean and SD
-  diffs1 <- abs((mapply(meanW, shape = shapeMesh, scale = scaleMesh) - newMean)/newMean)
-  diffs2 <- abs((mapply(sdW, shape = shapeMesh, scale = scaleMesh) - newSD)/newSD)
-  
-  # Find argmin by equally weighting mean and SD differences from supplied
-  argmin <- which.min((diffs1 + diffs2)/2)
-  
-  # Return shape and scale at argmin
-  return(c(shapeMesh[argmin], scaleMesh[argmin]))}
-
-# Function to transform raw variance and/or mean, then output corresponding meanlog and sdlog
-transform.ln <- function(meanlog, sdlog, fv, which.trans){
-  
-  # Internal functions to convert between mean/meanlog and sd/sdlog
-  # Need to do this when transforming raw variance and/or mean
-  mean.to.meanlog <- function(mean, sd){
-    return(2*log(mean) - 0.5*log((mean^2) + (sd^2)))}
-  sd.to.sdlog <- function(mean, sd){
-    return(sqrt(-2*log(mean) + log((mean^2) + (sd^2))))}
-  meanlog.to.mean <- function(meanlog, sdlog){
-    return(exp(meanlog + 0.5*(sdlog^2)))}
-  sdlog.to.sd <- function(meanlog, sdlog){
-    return(sqrt(exp(2*meanlog + (sdlog^2))*(exp(sdlog^2) - 1)))}
-  
-  # Let fv be the value that the mean and/or standard deviation is multiplied by
-  
-  # Conditional statements for the variable(s) to be transformed
-  if(which.trans == "mean"){
-    fm <- fv
-    fs <- 1}
-  if(which.trans == "sd"){
-    fm <- 1
-    fs <- fv}
-  if(which.trans == "both"){
-    fm <- fv
-    fs <- fv}
-  
-  # Transform variables
-  newMean <- meanlog.to.mean(meanlog, sdlog)*fm
-  newSD <- sdlog.to.sd(meanlog, sdlog)*fs
-  newMeanlog <- mean.to.meanlog(newMean, newSD)
-  newSDlog <- sd.to.sdlog(newMean, newSD)
-  
-  # Output new meanlog and sdlog
-  return(c(newMeanlog, newSDlog))}
-
-# Function to transform log odds ratio to probability
-invlogit <- function(x){
-  return(exp(x)/(1 + exp(x)))}
-
-
-
-
-
 ##### Set up functions for dispersal ----------------------------------------------------------------------
 
 # Dispersal function for collecting parameters into single vector
@@ -99,12 +8,13 @@ wald.param <- function(sNum, sVal){
   
   # Set parameters for wind speed, seed terminal velocity, and vegetation height
   sParam[1] <- 0.15                 # Vegetation height in m
-  sParam[2] <- ws_params[1]         # Shape, wind speed Weibull dist.
-  sParam[3] <- ws_params[2]         # Scale, wind speed Weibull dist.
+  sParam[2] <- ws_params[1]         # Shape wind speed, Weibull dist.
+  sParam[3] <- ws_params[2]         # Scale wind speed, Weibull dist.
   sParam[4] <- tv_params[1]         # Log mean terminal velocity, lognormal dist.
   sParam[5] <- tv_params[2]         # Log SD terminal velocity, lognormal dist.
   sParam[6] <- an_params[1]         # Intercept, ant dispersal prob. as function of distance
   sParam[7] <- an_params[2]         # Slope, ant dispersal prob. as function of distance
+  sParam[8] <- 0.056                # Probability of seed release from capitulum
   
   # Note: if transforming wind speeds, use sNum=2 for mean and sNum=3 for SD
   # Note: transformation on TV parameters transforms mean/SD, NOT log mean/SD
@@ -114,19 +24,22 @@ wald.param <- function(sNum, sVal){
     sParam[c(2, 3)] <- transform.wb(sParam[2], sParam[3], sVal, "mean")}
   if(sNum == 3){
     sParam[c(2, 3)] <- transform.wb(sParam[2], sParam[3], sVal, "sd")}
-  if(sNum == 6){
+  if(sNum == 4){
     sParam[c(4, 5)] <- transform.ln(sParam[sNum], sParam[sNum + 1], sVal, "mean")}
-  if(sNum == 7){
+  if(sNum == 5){
     sParam[c(4, 5)] <- transform.ln(sParam[sNum - 1], sParam[sNum], sVal, "sd")}
-  if(sNum == 8){
+  if(sNum == 6){
     sParam[6] <- sParam[6]*sVal}
-  if(sNum == 9){
-    sParam[7] <- sParam[7]*sVal}
+  if(sNum == 7){
+    sParam[7] <- sParam[7]*sVal
+  if(sNum == 8){
+    sParam[8] <- sParam[8]*sVal}}
   
   # Return vector of dispersal parameters
   return(sParam)}
 
 # Function generating a dispersal kernel using WALD model (Katul et al. 2005)
+# H is flower head height (m), and n is number of seeds
 # Code adapted from Skarpaas and Shea (2007)
 wald <- function(n, H, sVec){
   
@@ -144,17 +57,18 @@ wald <- function(n, H, sVec){
   z0 <- 0.1*h       # Roughness length
   zm <- 1           # Wind speed measurement height
   
-  # Let n be the number of simulation replications
-  # Let H be the seed release height
+  # Get counts for seeds that are and aren't released
+  nr <- round(n*sParam[8], 0)
+  nf <- n - nr
   
   # Simulate wind dispersal if released above canopy
   if(H > h){
     
     # Simulate wind speeds from Weibull distribution
-    Um <- rweibull(n, sParam[2], sParam[3])
+    Um <- rweibull(nr, sParam[2], sParam[3])
     
     # Simulate terminal velocities from lognormal distribution
-    f <- rlnorm(n, sParam[4], sParam[5])
+    f <- rlnorm(nr, sParam[4], sParam[5])
     
     # Calculate ustar, the friction velocity
     ustar <- K*Um*(log((zm - d)/z0))^(-1)
@@ -175,10 +89,14 @@ wald <- function(n, H, sVec){
     # Calculate location parameter nu
     nu <- H*U/f
     
-    # Generate inverse Gaussian distribution
+    # Generate inverse Gaussian distribution for seeds that release
     # Then marginalise onto single spatial axis, assuming no dominant wind direction
-    dists <- as.numeric(rinvGauss(n, nu = nu, lambda = lambda))*cos(runif(n, 0, 2*pi))
-    return(dists[1:n])}
+    dists <- as.numeric(rinvGauss(nr, nu = nu, lambda = lambda))*cos(runif(nr, 0, 2*pi))
+    
+    # For seeds that do not release, assume capitilum falls in place
+    # Thus, these seeds travel a distance of zero
+    dists <- c(dists, rep(0, nf))
+    return(dists)}
   
   # No dispersal if released below canopy
   if(H <= h){
@@ -222,34 +140,33 @@ demo.param <- function(dNum, dVal){
   dParam <- c()
   
   # Parameters for seed production, survival, establishment, and seed bank dynamics
-  dParam[1] <- 160                  # Seeds per flower head
-  dParam[2] <- 0.233                # Prob. of establishment from seed (0.302 W)
-  dParam[3] <- 0.15 + (0.85*0.90)   # Prob. of seed predation (pre- plus post-dispersal)
+  dParam[1] <- 476                  # Seeds per flower head
+  dParam[2] <- 0.15 + (0.85*0.90)   # Prob. of seed predation (pre- plus post-dispersal)
+  dParam[3] <- 0.233                # Prob. of establishment from seed
   dParam[4] <- 0.233                # Prob. of seed entering seed bank
-  dParam[5] <- 0.233                # Prob. of seed establishing from seed bank (0.302 W)
+  dParam[5] <- 0.233                # Prob. of seed establishing from seed bank
   dParam[6] <- 0.260                # Prob. of seed survival in seed bank
   
-  # Parameters for initial rosette diameter (cm) after establishment
-  dParam[7] <- mod_rose             # Mean rosette size intercept
-  dParam[8] <- mod_rose_err         # Mean rosette size SD
+  # Parameters for log initial rosette area after establishment
+  dParam[7] <- mod_rose             # Rosette size t0 intercept
+  dParam[8] <- mod_rose_err         # Rosette size t0 SD
   
-  # Parameters for rosette growth
-  dParam[9] <- mod_grow_NW[1]       # Mean growth intercept
-  dParam[10] <- mod_grow_NW[2]      # Mean growth size-slope
-  dParam[11] <- mod_grow_err        # Mean growth SD
+  # Parameters for rosette survival, and growth as function of log rosette area
+  dParam[9] <- surv_rs              # Prob. survival
+  dParam[10] <- mod_grow_NW[1]      # Rosette size t1 intercept
+  dParam[11] <- mod_grow_NW[2]      # Rosette size t1 SD
+  dParam[12] <- mod_grow_err        # Mean growth SD
   
-  # Parameters for flowering probability and head production as function of log rosette area
-  dParam[12] <- flow_rs_NW          # Prob. flowering
-  dParam[13] <- mod_head_NW[1]      # Mean num. heads intercept
-  dParam[14] <- mod_head_NW[2]      # Mean num. heads size-slope
-  dParam[15] <- mod_head_err        # Mean num. heads SD
+  # Parameters for flowering probability, and head production as function of log rosette area
+  dParam[13] <- flow_rs             # Prob. flowering
+  dParam[14] <- mod_head_NW[1]      # Num. heads intercept
+  dParam[15] <- mod_head_NW[2]      # Num. heads size-slope
+  dParam[16] <- mod_head_err        # Num. heads SD
   
-  # Parameters for distribution of flower head heights among flowering individuals
-  dParam[16] <- fits_hd_NW[1]       # Mean head height
-  dParam[17] <- fits_hd_NW[2]       # SD head height
-  
-  # Parameters for survival probability of rosettes as function of log rosette area
-  dParam[18] <- surv_rs_NW          # Prob. survival
+  # Parameters for flower head height as function of rosette diameter
+  dParam[17] <- mod_hdht_NW[1]      # Head height intercept
+  dParam[18] <- mod_hdht_NW[2]      # Head height diameter-slope
+  dParam[19] <- mod_hdht_err        # Head height SD
   
   # Scale only specified demographic parameter
   dVec <- rep(1, length(dParam))
@@ -260,19 +177,19 @@ demo.param <- function(dNum, dVal){
   return(dParam)}
 
 # Demography function for survival, reproduction, and more
-demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0){
+demo <- function(dType, dVec, n = 0, rsize = 0){
   
   # Import vector of demographic parameters
   dParam <- dVec
   
   # Per-head production of seeds, and subsequent seed survival
   if(dType == "seeds"){
-    nseed <- dParam[1]*(1 - dParam[3])
+    nseed <- dParam[1]*(1 - dParam[2])
     return(ceiling(nseed))}
   
   # Establishment of seeds that do not enter the seed bank
   if(dType == "estAG"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[2], 1 - dParam[2]), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[3], 1 - dParam[3]), replace = TRUE)
     return(outcomes)}
   
   # Entry of seeds into the seed bank
@@ -295,38 +212,30 @@ demo <- function(dType, dVec, n = 0, rsize = 0, nflow = 0){
     ros <- dParam[7] + rnorm(n, mean = 0, sd = dParam[8])
     return(ros)}
   
+  # Rosette survival before growth stage
+  if(dType == "survival"){
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[9], 1 - dParam[9]), replace = TRUE)
+    return(outcomes)}
+  
   # Rosette growth from t0 to t1
   if(dType == "grow"){
-    size <- dParam[9] + dParam[10]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[11])
+    size <- dParam[10] + dParam[11]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[12])
     return(size)}
   
   # Flowering probability as function of initial rosette size
   if(dType == "flowering"){
-    prob1 <- dParam[12]
-    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, 1 - prob1)[, i])
-    outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[13], 1 - dParam[13]), replace = TRUE)
     return(outcomes)}
   
   # Flower production as function of initial rosette size
   # Round any non-integers up to the nearest head, and negatives up to 1
   if(dType == "flowers"){
-    head <- dParam[13] + dParam[14]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[15])
+    head <- dParam[14] + dParam[15]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[16])
     head <- ifelse(head <= 0, 1, head)
     return(ceiling(head))}
   
   # Distribution of flower heights for a given individual
-  # Cap min and max heights based on observational data from flower height experiment
-  # Round heights to nearest cm
   if(dType == "height"){
-    height <- rnorm(n, mean = dParam[16], sd = dParam[17])/100
-    height[height < ht_min/100] <- ht_min/100
-    height[height > ht_max/100] <- ht_max/100
-    return(round(height, 2))}
-  
-  # Rosette survival as function of initial rosette size
-  if(dType == "survival"){
-    prob1 <- dParam[18]
-    problist <- lapply(seq_len(length(prob1)), function(i) rbind(prob1, 1 - prob1)[, i])
-    outcomes <- sapply(problist, sample, x = c(1, 0), size = 1, replace = TRUE)
-    return(outcomes)}}
+    height <- dParam[17] + dParam[18]*area.i(rsize) + rnorm(length(rsize), mean = 0, sd = dParam[19])
+    return(round(height, 2)/100)}}
 

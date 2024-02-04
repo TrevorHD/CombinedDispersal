@@ -75,7 +75,7 @@ for(i in 1:nYear){
   # Never kill when only one plant, and reset another rosette at origin if no plants remain
   # Both of these measures prevent the simulation from failing unexpectedly
   if(nrow(plants) > 1){
-    plants <- plants[demo("survival", dVec, rsize = plants$rsize) == 1, ]}
+    plants <- plants[demo("survival", dVec, n = nrow(plants)) == 1, ]}
   if(nrow(plants) == 0)
     plants <- data.frame(d = 0.01, stage = 0, rsize = demo("rsize", dVec, n = 1))
   
@@ -90,7 +90,7 @@ for(i in 1:nYear){
     nestsR <- nests[nests > min(plants$d) & nests < max(plants$d) + 1000]}
   
   # Simulate bolting and flowering; individuals that don't will remain rosettes
-  plants$stage <- demo("flowering", dVec, rsize = plants$rsize)
+  plants$stage <- demo("flowering", dVec, n = nrow(plants))
   
   # Simulate survival, then establishment, of seeds already in seed bank
   if(nrow(seedsSB) > 0){
@@ -109,9 +109,9 @@ for(i in 1:nYear){
   if(sum(plants$stage == 1) > 0){
     temp2 <- plants[plants$stage == 1, ]
     nflow <- demo("flowers", dVec, rsize = temp2$rsize)
-    f1 <- unlist(sapply(nflow, demo, dType = "height", dVec = dVec))
+    f1 <- demo("height", dVec, rsize = rep(temp2$rsize, times = nflow))
     s1 <- rep(demo("seeds", dVec), times = sum(nflow))
-    d1 <- unlist(mapply(x = temp2$d, times = nflow, rep))
+    d1 <- rep(temp2$d, times = nflow)
     clusterExport(cl, c("kern", "wald", "s1", "f1", "d1", "sVec"))
     seedsNew <- unlist(clusterMap(cl, kern, n = s1, h = f1, d0 = d1,
                                   MoreArgs = list(sVec = sVec)))

@@ -78,9 +78,12 @@ data_ht %>%
   summarise(Height_PA = mean(Height)) -> data_ht_PA
 data_ht_PA$DM_t1_PA <- data_rs_PA$DM_t1_PA
 
-# Create function to calculate rosette area
+# Create function to calculate rosette area from diameter
+# also create inverse funciton that does the opposite
 area <- function(diam){
   return(log(pi*(diam/2)^2))}
+area.i <- function(area){
+  return(2*sqrt(exp(area)/pi))}
 
 
 
@@ -403,6 +406,97 @@ lines(density(temp2), col = "red")
 # Equation from Rabelo et al. (2021)... p = log(B0 + B1x)
 # Probability of seed removal as function of distance from nest
 an_params <- c(-0.56, -0.36)
+
+
+
+
+
+##### Set up functions for distribution transformations ---------------------------------------------------
+
+# Function to transform raw variance and/or mean, then output corresponding shape and scale
+transform.wb <- function(shape, scale, fv, which.trans){
+  
+  # Internal functions to calculate mean and SD of Weibull distribution
+  meanW <- function(shape, scale){
+    return(scale*gamma(1 + 1/shape))}
+  sdW <- function(shape, scale){
+    return(sqrt((scale^2)*(gamma(1 + 2/shape) - gamma(1 + 1/shape)^2)))}
+  
+  # Must brute force a solution since there is no easy function for inverse gamma
+  
+  # Create meshpoints for combinations of shape and scale
+  scaleAxis <- seq(0.1, 5, by = 0.005)
+  shapeAxis <- seq(0.1, 5, by = 0.005)
+  scaleMesh = rep(scaleAxis, each = length(shapeAxis))
+  shapeMesh = rep(shapeAxis, times = length(scaleAxis))
+  
+  # Let fv be the value that the mean and/or standard deviation is multiplied by
+  
+  # Conditional statements for the variable(s) to be transformed
+  if(which.trans == "mean"){
+    fm <- fv
+    fs <- 1}
+  if(which.trans == "sd"){
+    fm <- 1
+    fs <- fv}
+  if(which.trans == "both"){
+    fm <- fv
+    fs <- fv}
+  
+  # Transform variables
+  newMean = meanW(shape = shape, scale = scale)*fm
+  newSD = sdW(shape = shape, scale = scale)*fs
+  
+  # Evaluate mean and SD for at meshpoints
+  # Then calculate difference between estimated and supplied mean and SD
+  diffs1 <- abs((mapply(meanW, shape = shapeMesh, scale = scaleMesh) - newMean)/newMean)
+  diffs2 <- abs((mapply(sdW, shape = shapeMesh, scale = scaleMesh) - newSD)/newSD)
+  
+  # Find argmin by equally weighting mean and SD differences from supplied
+  argmin <- which.min((diffs1 + diffs2)/2)
+  
+  # Return shape and scale at argmin
+  return(c(shapeMesh[argmin], scaleMesh[argmin]))}
+
+# Function to transform raw variance and/or mean, then output corresponding meanlog and sdlog
+transform.ln <- function(meanlog, sdlog, fv, which.trans){
+  
+  # Internal functions to convert between mean/meanlog and sd/sdlog
+  # Need to do this when transforming raw variance and/or mean
+  mean.to.meanlog <- function(mean, sd){
+    return(2*log(mean) - 0.5*log((mean^2) + (sd^2)))}
+  sd.to.sdlog <- function(mean, sd){
+    return(sqrt(-2*log(mean) + log((mean^2) + (sd^2))))}
+  meanlog.to.mean <- function(meanlog, sdlog){
+    return(exp(meanlog + 0.5*(sdlog^2)))}
+  sdlog.to.sd <- function(meanlog, sdlog){
+    return(sqrt(exp(2*meanlog + (sdlog^2))*(exp(sdlog^2) - 1)))}
+  
+  # Let fv be the value that the mean and/or standard deviation is multiplied by
+  
+  # Conditional statements for the variable(s) to be transformed
+  if(which.trans == "mean"){
+    fm <- fv
+    fs <- 1}
+  if(which.trans == "sd"){
+    fm <- 1
+    fs <- fv}
+  if(which.trans == "both"){
+    fm <- fv
+    fs <- fv}
+  
+  # Transform variables
+  newMean <- meanlog.to.mean(meanlog, sdlog)*fm
+  newSD <- sdlog.to.sd(meanlog, sdlog)*fs
+  newMeanlog <- mean.to.meanlog(newMean, newSD)
+  newSDlog <- sd.to.sdlog(newMean, newSD)
+  
+  # Output new meanlog and sdlog
+  return(c(newMeanlog, newSDlog))}
+
+# Function to transform log odds ratio to probability
+invlogit <- function(x){
+  return(exp(x)/(1 + exp(x)))}
 
 
 
