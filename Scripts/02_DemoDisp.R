@@ -7,13 +7,13 @@ wald.param <- function(sNum, sVal){
   sParam <- c()
   
   # Set parameters for wind speed, seed terminal velocity, and vegetation height
-  sParam[1] <- 0.15                 # Vegetation height in m
-  sParam[2] <- ws_params[1]         # Shape wind speed, Weibull dist.
-  sParam[3] <- ws_params[2]         # Scale wind speed, Weibull dist.
-  sParam[4] <- tv_params[1]         # Log mean terminal velocity, lognormal dist.
-  sParam[5] <- tv_params[2]         # Log SD terminal velocity, lognormal dist.
-  sParam[6] <- an_params[1]         # Intercept, ant dispersal prob. as function of distance
-  sParam[7] <- an_params[2]         # Slope, ant dispersal prob. as function of distance
+  sParam[1] <- 0.15                 # Vegetation height (m)
+  sParam[2] <- disp_ws[1]           # Shape wind speed, Weibull dist.
+  sParam[3] <- disp_ws[2]           # Scale wind speed, Weibull dist.
+  sParam[4] <- disp_tv[1]           # Log mean terminal velocity, lognormal dist.
+  sParam[5] <- disp_tv[2]           # Log SD terminal velocity, lognormal dist.
+  sParam[6] <- disp_ant[1]          # Intercept, ant dispersal prob. as function of distance (m)
+  sParam[7] <- disp_ant[2]          # Slope, ant dispersal prob. as function of distance (m)
   sParam[8] <- 0.056                # Probability of seed release from capitulum
   
   # Note: if transforming wind speeds, use sNum=2 for mean and sNum=3 for SD
@@ -148,25 +148,25 @@ demo.param <- function(dNum, dVal){
   dParam[6] <- 0.260                # Prob. of seed survival in seed bank
   
   # Parameters for log initial rosette area after establishment
-  dParam[7] <- mod_rose             # Rosette size t0 intercept
-  dParam[8] <- mod_rose_err         # Rosette size t0 SD
+  dParam[7] <- demo_rose            # Rosette size t0 intercept
+  dParam[8] <- demo_rose_err        # Rosette size t0 SD
   
   # Parameters for rosette survival, and growth as function of log rosette area
-  dParam[9] <- surv_rs              # Prob. survival
-  dParam[10] <- mod_grow_NW[1]      # Rosette size t1 intercept
-  dParam[11] <- mod_grow_NW[2]      # Rosette size t1 SD
-  dParam[12] <- mod_grow_err        # Mean growth SD
+  dParam[9] <- demo_surv            # Prob. survival
+  dParam[10] <- demo_grow_NW[1]     # Rosette size t1 intercept
+  dParam[11] <- demo_grow_NW[2]     # Rosette size t1 SD
+  dParam[12] <- demo_grow_err       # Mean growth SD
   
   # Parameters for flowering probability, and head production as function of log rosette area
-  dParam[13] <- flow_rs             # Prob. flowering
-  dParam[14] <- mod_head_NW[1]      # Num. heads intercept
-  dParam[15] <- mod_head_NW[2]      # Num. heads size-slope
-  dParam[16] <- mod_head_err        # Num. heads SD
+  dParam[13] <- demo_flow           # Prob. flowering
+  dParam[14] <- demo_head_NW[1]     # Num. heads intercept
+  dParam[15] <- demo_head_NW[2]     # Num. heads size-slope
+  dParam[16] <- demo_head_err       # Num. heads SD
   
   # Parameters for flower head height as function of rosette diameter
-  dParam[17] <- mod_hdht_NW[1]      # Head height intercept
-  dParam[18] <- mod_hdht_NW[2]      # Head height diameter-slope
-  dParam[19] <- mod_hdht_err        # Head height SD
+  dParam[17] <- demo_hdht_NW[1]     # Head height intercept
+  dParam[18] <- demo_hdht_NW[2]     # Head height diameter-slope
+  dParam[19] <- demo_hdht_err       # Head height SD
   
   # Scale only specified demographic parameter
   dVec <- rep(1, length(dParam))

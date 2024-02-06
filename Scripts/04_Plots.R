@@ -12,7 +12,7 @@ plot.new()
 gly <- grid.layout(2000, 600)
 pushViewport(viewport(layout = gly))
 
-# CN non-warmed: mean vs distribution
+# Plot wavefront for t=10
 pushViewport(vp = viewport(layout.pos.row = 1:500, layout.pos.col = 1:600))
 par(fig = gridFIG())
 par(new = TRUE, mar = c(0.6, 1.8, 0.4, 0.5), cex.axis = 0.45, cex.lab = 0.5,
@@ -20,21 +20,21 @@ par(new = TRUE, mar = c(0.6, 1.8, 0.4, 0.5), cex.axis = 0.45, cex.lab = 0.5,
 generatePlots(type = "density", snap = TRUE, snap_t = 10)
 popViewport()
 
-# CN warmed: mean vs distribution
+# Plot wavefront for t=20
 pushViewport(vp = viewport(layout.pos.row = 500:970, layout.pos.col = 1:600))
 par(fig = gridFIG())
 par(new = TRUE, mar = c(0.6, 1.8, 0.0, 0.5))
 generatePlots(type = "density", snap = TRUE, snap_t = 20)
 popViewport()
 
-# CA non-warmed: mean vs distribution
+# Plot wavefront for t=30
 pushViewport(vp = viewport(layout.pos.row = 975:1445, layout.pos.col = 1:600))
 par(fig = gridFIG())
 par(new = TRUE, mar = c(0.6, 1.8, 0.0, 0.5))
 generatePlots(type = "density", snap = TRUE, snap_t = 30)
 popViewport()
 
-# CA warmed: mean vs distribution
+# Plot wavefront for t=40
 pushViewport(vp = viewport(layout.pos.row = 1450:2000, layout.pos.col = 1:600))
 par(fig = gridFIG())
 par(new = TRUE, mar = c(1.5, 1.8, 0.0, 0.5))
