@@ -115,12 +115,38 @@ ant <- function(dist, sVec){
   return(prob)}
 
 # Function to see if a seed is taken to the nearest nest
+# Set 50 m as maximum search distance (~ 1 in 100 million chance at 50 m)
+# Capping the search distance greatly reduces computational load
 nestsearch <- function(d, range, sVec){
   dists <- abs(d - nestsR)
   centre <- nestsR[which.min(dists)]
   toProb <- ant(min(dists), sVec)
   toNest <- sample(c(0, 1), 1, prob = c(1 - toProb, toProb))
   ifelse(toNest == 1 && min(dists) <= range, return(centre), return(d))}
+
+# Function to see if a seed is taken to an ant nest
+# Set 50 m as maximum search distance (~ 1 in 100 million chance at 50 m)
+# Capping the search distance greatly reduces computational load
+nestsearch <- function(d, range, sVec){
+  
+  # Calculate distance between seed and nests
+  dists <- nestsR - d
+  
+  # Only select nests inside the maximum search distance
+  # Then sort nests, with closest nest first
+  dists <- dists[abs(dists) <= range]
+  
+  # Get probability that seed is taken to each nest
+  # Note: probability for each nest is not affected by presence of other nests
+  toProb <- ant(abs(dists), sVec)
+  toProb <- mapply(c, 1 - toProb, toProb, SIMPLIFY = FALSE)
+  
+  # Get success/failure for each nest
+  toNest <- sapply(toProb, sample, x = c(0, 1), size = 1, replace = FALSE)
+  
+  # Since only one nest can take the seed, give priority to closest nest
+  # If seed is not taken to any nest, then keep current seed position
+  ifelse(sum(toNest) == 0, return(d), return(d + dists[min(which(toNest == 1))]))}
 
 # Function to estimate dispersal distances from given point
 kern <- function(n, h, sVec, d0 = 0){
@@ -141,32 +167,33 @@ demo.param <- function(dNum, dVal){
   
   # Parameters for seed production, survival, establishment, and seed bank dynamics
   dParam[1] <- 476                  # Seeds per flower head
-  dParam[2] <- 0.15 + (0.85*0.90)   # Prob. of seed predation (pre- plus post-dispersal)
-  dParam[3] <- 0.233                # Prob. of establishment from seed
-  dParam[4] <- 0.233                # Prob. of seed entering seed bank
-  dParam[5] <- 0.233                # Prob. of seed establishing from seed bank
-  dParam[6] <- 0.260                # Prob. of seed survival in seed bank
+  dParam[2] <- 0.850                # Prob. of surviving pre-dispersal seed predation (florivory)
+  dParam[3] <- 0.100                # Prob. of surviving post-dispersal seed predation
+  dParam[4] <- 0.233                # Prob. of establishment from seed
+  dParam[5] <- 0.233                # Prob. of seed entering seed bank
+  dParam[6] <- 0.233                # Prob. of seed establishing from seed bank
+  dParam[7] <- 0.260                # Prob. of seed survival in seed bank
   
   # Parameters for log initial rosette area after establishment
-  dParam[7] <- demo_rose            # Rosette size t0 intercept
-  dParam[8] <- demo_rose_err        # Rosette size t0 SD
+  dParam[8] <- demo_rose            # Rosette size t0 intercept
+  dParam[9] <- demo_rose_err        # Rosette size t0 SD
   
   # Parameters for rosette survival, and growth as function of log rosette area
-  dParam[9] <- demo_surv            # Prob. survival
-  dParam[10] <- demo_grow_NW[1]     # Rosette size t1 intercept
-  dParam[11] <- demo_grow_NW[2]     # Rosette size t1 SD
-  dParam[12] <- demo_grow_err       # Mean growth SD
+  dParam[10] <- demo_surv           # Prob. survival
+  dParam[11] <- demo_grow_NW[1]     # Rosette size t1 intercept
+  dParam[12] <- demo_grow_NW[2]     # Rosette size t1 SD
+  dParam[13] <- demo_grow_err       # Mean growth SD
   
   # Parameters for flowering probability, and head production as function of log rosette area
-  dParam[13] <- demo_flow           # Prob. flowering
-  dParam[14] <- demo_head_NW[1]     # Num. heads intercept
-  dParam[15] <- demo_head_NW[2]     # Num. heads size-slope
-  dParam[16] <- demo_head_err       # Num. heads SD
+  dParam[14] <- demo_flow           # Prob. flowering
+  dParam[15] <- demo_head_NW[1]     # Num. heads intercept
+  dParam[16] <- demo_head_NW[2]     # Num. heads size-slope
+  dParam[17] <- demo_head_err       # Num. heads SD
   
   # Parameters for flower head height as function of rosette diameter
-  dParam[17] <- demo_hdht_NW[1]     # Head height intercept
-  dParam[18] <- demo_hdht_NW[2]     # Head height diameter-slope
-  dParam[19] <- demo_hdht_err       # Head height SD
+  dParam[18] <- demo_hdht_NW[1]     # Head height intercept
+  dParam[19] <- demo_hdht_NW[2]     # Head height diameter-slope
+  dParam[20] <- demo_hdht_err       # Head height SD
   
   # Scale only specified demographic parameter
   dVec <- rep(1, length(dParam))
@@ -183,59 +210,57 @@ demo <- function(dType, dVec, n = 0, rsize = 0){
   dParam <- dVec
   
   # Per-head production of seeds, and subsequent seed survival
+  # Product of per-head seed count, predation, and post-predation death
   if(dType == "seeds"){
-    nseed <- dParam[1]*(1 - dParam[2])
+    nseed <- dParam[1]*(dParam[2])*(dParam[3])*(1 - dParam[4] - dParam[5])
     return(ceiling(nseed))}
   
-  # Establishment of seeds that do not enter the seed bank
+  # Establishment of seeds not entering the seed bank
+  # We already accounted for post-predation death, so non-establishing seeds must enter seed bank
   if(dType == "estAG"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[3], 1 - dParam[3]), replace = TRUE)
-    return(outcomes)}
-  
-  # Entry of seeds into the seed bank
-  if(dType == "entSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[4], 1 - dParam[4]), replace = TRUE)
+    prob1 <- c(dParam[4]/(dParam[4] + dParam[5]))
+    outcomes <- sample(c(1, 0), size = n, prob = c(prob1, 1 - prob1), replace = TRUE)
     return(outcomes)}
   
   # Establishment of seeds from the seed bank
   if(dType == "estSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[5], 1 - dParam[5]), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[6], 1 - dParam[6]), replace = TRUE)
     return(outcomes)}
   
   # Survival of seeds in the seed bank
   if(dType == "surSB"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[6], 1 - dParam[6]), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[7], 1 - dParam[7]), replace = TRUE)
     return(outcomes)}
   
   # Initial rosette size upon establishment
   if(dType == "rsize"){
-    ros <- dParam[7] + rnorm(n, mean = 0, sd = dParam[8])
+    ros <- dParam[8] + rnorm(n, mean = 0, sd = dParam[9])
     return(ros)}
   
   # Rosette survival before growth stage
   if(dType == "survival"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[9], 1 - dParam[9]), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[10], 1 - dParam[10]), replace = TRUE)
     return(outcomes)}
   
   # Rosette growth from t0 to t1
   if(dType == "grow"){
-    size <- dParam[10] + dParam[11]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[12])
+    size <- dParam[11] + dParam[12]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[13])
     return(size)}
   
   # Flowering probability as function of initial rosette size
   if(dType == "flowering"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[13], 1 - dParam[13]), replace = TRUE)
+    outcomes <- sample(c(1, 0), size = n, prob = c(dParam[14], 1 - dParam[14]), replace = TRUE)
     return(outcomes)}
   
   # Flower production as function of initial rosette size
   # Round any non-integers up to the nearest head, and negatives up to 1
   if(dType == "flowers"){
-    head <- dParam[14] + dParam[15]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[16])
+    head <- dParam[15] + dParam[16]*rsize + rnorm(length(rsize), mean = 0, sd = dParam[17])
     head <- ifelse(head <= 0, 1, head)
     return(ceiling(head))}
   
   # Distribution of flower heights for a given individual
   if(dType == "height"){
-    height <- dParam[17] + dParam[18]*area.i(rsize) + rnorm(length(rsize), mean = 0, sd = dParam[19])
+    height <- dParam[18] + dParam[19]*area.i(rsize) + rnorm(length(rsize), mean = 0, sd = dParam[20])
     return(round(height, 2)/100)}}
 
