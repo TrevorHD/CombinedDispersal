@@ -37,7 +37,7 @@ adsp.param <- function(aNum, aVal){
   aParam <- c()
   aParam[1] <- 476                  # Seeds per flower head
   aParam[2] <- 0.850                # Prob. of surviving pre-dispersal seed predation (florivory)
-  aParam[3] <- 0.980                # Prob. of seed removal by ants***
+  aParam[3] <- 0.984                # Prob. of seed removal by ants***
   aParam[4] <- 0.100                # Prob. of surviving post-dispersal seed predation by ants
   aParam[5] <- 0.302                # Prob. of establishment from seed***
   aParam[6] <- 0.233                # Prob. of seed entering seed bank
