@@ -79,7 +79,7 @@ data_ht %>%
 data_ht_PA$DM_t1_PA <- data_rs_PA$DM_t1_PA
 
 # Create function to calculate rosette area from diameter
-# also create inverse funciton that does the opposite
+# Also create inverse function that does the opposite
 area <- function(diam){
   return(log(pi*(diam/2)^2))}
 area.i <- function(area){
@@ -293,7 +293,7 @@ remove(demo_head, temp1, temp2)
 
 ##### Get equations for flower head heights ---------------------------------------------------------------
 
-# Model flower head count as a function of rosette area at t1; include warming and interaction
+# Model flower head height as a function of rosette size; include warming and interaction
 # Keep structure consistent with Drees and Shea (2023) by using diameter as covariate instead of area
 # However, use diameter at t1 instead of t0; makes more sense in our Demo + Dispersal model framework
 # Thus, parameters estimates will be slightly different compared to Drees and Shea (2023)
@@ -404,16 +404,6 @@ remove(temp1, temp2)
 
 
 
-##### Set up ant seed dispersal distribution --------------------------------------------------------------
-
-# Equation from Rabelo et al. (2021)... p = log(B0 + B1x)
-# Probability of seed removal as function of distance from nest
-disp_ant <- c(-0.56, -0.36)
-
-
-
-
-
 ##### Set up functions for distribution transformations ---------------------------------------------------
 
 # Function to transform raw variance and/or mean, then output corresponding shape and scale
@@ -497,9 +487,37 @@ transform.ln <- function(meanlog, sdlog, fv, which.trans){
   # Output new meanlog and sdlog
   return(c(newMeanlog, newSDlog))}
 
-# Function to transform log odds ratio to probability
-invlogit <- function(x){
-  return(exp(x)/(1 + exp(x)))}
+
+
+
+
+##### Set up functions for density calculations -----------------------------------------------------------
+
+# Function to calculate density per 1-m window
+dens.calc <- function(i, plants){
+  
+  # Get list of positions within a 1-m window
+  vals <- plants$d[plants$d >= i - 1 & plants$d < i]
+  
+  # Get number of plants in the same window
+  dens <- length(vals)
+  
+  # Return density
+  return(dens)}
+
+# Function to spread plants evenly in max-density windows
+# More realistic than leaving all plants in exact same position
+dens.spread <- function(i, plants){
+  
+  # Get list of plants within a 1-m window
+  vals <- plants[plants$d >= i - 1 & plants$d < i, ]
+  
+  # Spread plants evenly if at max density
+  if(nrow(vals) == tDens){
+    vals$d <- i - 1 + (0:(tDens - 1))/tDens}
+  
+  # Return updated dataframe of plants
+  return(vals)}
 
 
 
