@@ -51,16 +51,20 @@ dev.off()
 ##### [F3] Create function to plot parameter elasticity ---------------------------------------------------
 
 # Create placeholder data with elasticity for each scalable parameter
-temp <- data.frame(var = c("Vegetation height", "Mean wind speed", "SD wind speed",
-                           "Mean terminal velocity", "SD terminal velocity",
-                           "Intercept prob. ant dispersal", "Slope prob. ant dispersal",
-                           "Seeds per flower head", "Prob. estab. from seed",
-                           "Prob. seed predation", "Prob. seed entering SB",
-                           "Prob. estab. from SB", "Prob. survival in SB",
-                           "Mean rosette size", "SD rosette size", "Prob. flowering",
-                           "Intercept num. heads", "Slope num. heads", "Mean head height",
-                           "SD head height", "Prob. survival"),
-                   vals = seq(-1, 1, length.out = 21))
+temp <- data.frame(var = c("Mean initial rosette size", "SD initial rosette size", "Prob. rosette survival",
+                           "Intercept rosette size after growth", "Size-slope rosette size after growth",
+                           "SD rosette size after growth", "Prob. rosette bolting/flowering",
+                           "Intercept number of flower heads", "Size-slope number of flower heads",
+                           "SD number of flower heads", "Intercept flower head height",
+                           "Size-slope flower head height", "SD flower head height", "Max thistle density",
+                           "Seeds per flower head", "Prob. establishment from seed", "Prob. seed survival in seed bank",
+                           "Prob. seed establishing from seed bank", "Prob. seed entering seed bank",
+                           "Prop. seeds surviving florivory", "Prop. seeds released",
+                           "Mean seed terminal velocity", "SD seed terminal velocity", "Mean wind speed",
+                           "SD wind speed", "Vegetation height", "Prob. seed removal by ants",
+                           "Prob. surviving post-dispersal predation", "Ant nest density",
+                           "Maximum ant search radius"),
+                   vals = seq(-1, 1, length.out = 30))
 
 # Prepare graphics device
 tiff(filename = "Figures/Figure 3.tif", width = 2000, height = 2000, units = "px",
@@ -77,10 +81,10 @@ pushViewport(viewport(layout = gly))
 # Plot elasticity values
 pushViewport(vp = viewport(layout.pos.row = 1:2000, layout.pos.col = 1:2000))
 par(fig = gridFIG())
-par(new = TRUE, mar = c(1.5, 3.7, 0.2, 0.5), cex = 0.4, cex.axis = 0.75)
+par(new = TRUE, mar = c(1.5, 4.7, 0.2, 0.5), cex = 0.4, cex.axis = 0.75)
 barplot(temp$vals, space = 0.7, horiz = TRUE, mgp = c(0.3, -0.25, 0),
         xlab = "Elasticity", tcl = -0.15)
-axis(2, at = seq(1.25, 35.3, length.out = 21), labels = temp$var,
+axis(2, at = seq(1.35, 50.75, length.out = 30), labels = temp$var,
      las = 2, mgp = c(0.85, 0.2, 0), tcl = 0)
 box()
 popViewport()

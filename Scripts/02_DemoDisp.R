@@ -1,110 +1,3 @@
-##### Set up functions for wind dispersal -----------------------------------------------------------------
-
-# Dispersal function for collecting wind dispersal parameters into single vector
-wdsp.param <- function(wNum, wVal){
-  
-  # Prepare vector to store scalable dispersal parameters
-  wParam <- c()
-  
-  # Set parameters for wind speed, seed terminal velocity, and vegetation height
-  wParam[1] <- 0.150                # Vegetation height (m)
-  wParam[2] <- disp_ws[1]           # Shape wind speed, Weibull dist.
-  wParam[3] <- disp_ws[2]           # Scale wind speed, Weibull dist.
-  wParam[4] <- disp_tv[1]           # Log mean terminal velocity, lognormal dist.
-  wParam[5] <- disp_tv[2]           # Log SD terminal velocity, lognormal dist.
-  wParam[6] <- 0.056                # Probability of seed release from capitulum
-  
-  # Note: if transforming wind speeds, use wNum=2 for mean and wNum=3 for SD
-  # Note: transformation on TV parameters transforms mean/SD, NOT log mean/SD
-  if(wNum == 1){
-    wParam[1] <- wParam[1]*wVal}
-  if(wNum == 2){
-    wParam[c(2, 3)] <- transform.wb(wParam[2], wParam[3], wVal, "mean")}
-  if(wNum == 3){
-    wParam[c(2, 3)] <- transform.wb(wParam[2], wParam[3], wVal, "sd")}
-  if(wNum == 4){
-    wParam[c(4, 5)] <- transform.ln(wParam[wNum], wParam[wNum + 1], wVal, "mean")}
-  if(wNum == 5){
-    wParam[c(4, 5)] <- transform.ln(wParam[wNum - 1], wParam[wNum], wVal, "sd")}
-  if(wNum == 8){
-    wParam[6] <- wParam[6]*wVal}
-  
-  # Return vector of dispersal parameters
-  return(wParam)}
-
-# Function sampling from a dispersal kernel using WALD model (Katul et al. 2005)
-# H is flower head height (m), and n is number of seeds
-# Code adapted from Skarpaas and Shea (2007)
-wdsp.wald <- function(n, H, wVec){
-  
-  # Import vector of dispersal parameters
-  wParam <- wVec
-  
-  # Initialise physical constants
-  K <- 0.4          # von Karman constant
-  C0 <- 3.125       # Kolmogorov constant
-  
-  # Initialise other fixed quantities
-  Aw <- 1.3         # Ratio of sigmaw to ustar
-  h <- wParam[1]    # Grass cover height
-  d <- 0.7*h        # Zero-plane displacement
-  z0 <- 0.1*h       # Roughness length
-  zm <- 1           # Wind speed measurement height
-  
-  # Get counts for seeds that are and aren't released
-  nr <- round(n*wParam[6], 0)
-  nf <- n - nr
-  
-  # Simulate wind dispersal if released above canopy
-  if(H > h){
-    
-    # Simulate wind speeds from Weibull distribution
-    Um <- rweibull(nr, wParam[2], wParam[3])
-    
-    # Simulate terminal velocities from lognormal distribution
-    f <- rlnorm(nr, wParam[4], wParam[5])
-    
-    # Calculate ustar, the friction velocity
-    ustar <- K*Um*(log((zm - d)/z0))^(-1)
-    
-    # Set up integrand for wind speed between vegetation surface and seed release height H
-    integrand <- function(z){
-      (1/K)*(log((z - d)/z0))}
-    
-    # Integrate to obtain U
-    U <- (ustar/H)*integrate(integrand, lower = d + z0, upper = H)$value
-    
-    # Calculate instability parameter
-    sigma <- 2*(Aw^2)*sqrt((K*(H - d)*ustar)/(C0*U))
-    
-    # Calculate scale parameter lambda
-    lambda <- (H/sigma)^2
-    
-    # Calculate location parameter nu
-    nu <- H*U/f
-    
-    # Generate inverse Gaussian distribution for seeds that release
-    # Then marginalise onto single spatial axis, assuming no dominant wind direction
-    dists <- as.numeric(rinvGauss(nr, nu = nu, lambda = lambda))*cos(runif(nr, 0, 2*pi))
-    
-    # For seeds that do not release, assume capitilum falls in place
-    # Thus, these seeds travel a distance of zero
-    dists <- c(dists, rep(0, nf))
-    return(dists)}
-  
-  # No dispersal if released below canopy
-  if(H <= h){
-    return(rep(0, n))}}
-
-# Function to estimate dispersal distances from given point
-wdsp.disp <- function(n, h, wVec, d0 = 0){
-  d <- wdsp.wald(n, h, wVec) + d0
-  return(d)}
-
-
-
-
-
 ##### Set up functions for demography and ant dispersal ---------------------------------------------------
 
 # Demography function for collecting parameters into single vector
@@ -239,4 +132,111 @@ adsp.disp <- function(d, range){
   
   # Return new seed location after being taken to nearest nest
   return(d + dist)}
+
+
+
+
+
+##### Set up functions for wind dispersal -----------------------------------------------------------------
+
+# Dispersal function for collecting wind dispersal parameters into single vector
+wdsp.param <- function(wNum, wVal){
+  
+  # Prepare vector to store scalable dispersal parameters
+  wParam <- c()
+  
+  # Set parameters for wind speed, seed terminal velocity, and vegetation height
+  wParam[1] <- 0.150                # Vegetation height (m)
+  wParam[2] <- disp_ws[1]           # Shape wind speed, Weibull dist.
+  wParam[3] <- disp_ws[2]           # Scale wind speed, Weibull dist.
+  wParam[4] <- disp_tv[1]           # Log mean terminal velocity, lognormal dist.
+  wParam[5] <- disp_tv[2]           # Log SD terminal velocity, lognormal dist.
+  wParam[6] <- 0.056                # Probability of seed release from capitulum
+  
+  # Note: if transforming wind speeds, use wNum=2 for mean and wNum=3 for SD
+  # Note: transformation on TV parameters transforms mean/SD, NOT log mean/SD
+  if(wNum == 1){
+    wParam[1] <- wParam[1]*wVal}
+  if(wNum == 2){
+    wParam[c(2, 3)] <- transform.wb(wParam[2], wParam[3], wVal, "mean")}
+  if(wNum == 3){
+    wParam[c(2, 3)] <- transform.wb(wParam[2], wParam[3], wVal, "sd")}
+  if(wNum == 4){
+    wParam[c(4, 5)] <- transform.ln(wParam[wNum], wParam[wNum + 1], wVal, "mean")}
+  if(wNum == 5){
+    wParam[c(4, 5)] <- transform.ln(wParam[wNum - 1], wParam[wNum], wVal, "sd")}
+  if(wNum == 8){
+    wParam[6] <- wParam[6]*wVal}
+  
+  # Return vector of dispersal parameters
+  return(wParam)}
+
+# Function sampling from a dispersal kernel using WALD model (Katul et al. 2005)
+# H is flower head height (m), and n is number of seeds
+# Code adapted from Skarpaas and Shea (2007)
+wdsp.wald <- function(n, H, wVec){
+  
+  # Import vector of dispersal parameters
+  wParam <- wVec
+  
+  # Initialise physical constants
+  K <- 0.4          # von Karman constant
+  C0 <- 3.125       # Kolmogorov constant
+  
+  # Initialise other fixed quantities
+  Aw <- 1.3         # Ratio of sigmaw to ustar
+  h <- wParam[1]    # Grass cover height
+  d <- 0.7*h        # Zero-plane displacement
+  z0 <- 0.1*h       # Roughness length
+  zm <- 1           # Wind speed measurement height
+  
+  # Get counts for seeds that are and aren't released
+  nr <- round(n*wParam[6], 0)
+  nf <- n - nr
+  
+  # Simulate wind dispersal if released above canopy
+  if(H > h){
+    
+    # Simulate wind speeds from Weibull distribution
+    Um <- rweibull(nr, wParam[2], wParam[3])
+    
+    # Simulate terminal velocities from lognormal distribution
+    f <- rlnorm(nr, wParam[4], wParam[5])
+    
+    # Calculate ustar, the friction velocity
+    ustar <- K*Um*(log((zm - d)/z0))^(-1)
+    
+    # Set up integrand for wind speed between vegetation surface and seed release height H
+    integrand <- function(z){
+      (1/K)*(log((z - d)/z0))}
+    
+    # Integrate to obtain U
+    U <- (ustar/H)*integrate(integrand, lower = d + z0, upper = H)$value
+    
+    # Calculate instability parameter
+    sigma <- 2*(Aw^2)*sqrt((K*(H - d)*ustar)/(C0*U))
+    
+    # Calculate scale parameter lambda
+    lambda <- (H/sigma)^2
+    
+    # Calculate location parameter nu
+    nu <- H*U/f
+    
+    # Generate inverse Gaussian distribution for seeds that release
+    # Then marginalise onto single spatial axis, assuming no dominant wind direction
+    dists <- as.numeric(rinvGauss(nr, nu = nu, lambda = lambda))*cos(runif(nr, 0, 2*pi))
+    
+    # For seeds that do not release, assume capitilum falls in place
+    # Thus, these seeds travel a distance of zero
+    dists <- c(dists, rep(0, nf))
+    return(dists)}
+  
+  # No dispersal if released below canopy
+  if(H <= h){
+    return(rep(0, n))}}
+
+# Function to estimate dispersal distances from given point
+wdsp.disp <- function(n, h, wVec, d0 = 0){
+  d <- wdsp.wald(n, h, wVec) + d0
+  return(d)}
 
