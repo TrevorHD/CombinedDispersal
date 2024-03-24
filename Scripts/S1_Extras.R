@@ -1,4 +1,4 @@
-##### Create functions to automate elasticity calculations ------------------------------------------------
+##### [Deprecated] Create functions to automate elasticity calculations -----------------------------------
 
 # Calculate baseline wavespeeds
 wave.base <- function(){
@@ -71,7 +71,7 @@ wave.elas <- function(dNum, dVal, sNum, sVal, baseObj){
 
 
 
-##### Pre-generate dispersal data to optimise wavespeed code ----------------------------------------------
+##### [Deprecated] Pre-generate dispersal data to optimise wavespeed code ---------------------------------
 
 # Simulating dispersal events on-the-fly causes huge CPU bottleneck during wavespeed simulations
 # However, simulating dispersal now and pulling from the data later will reduce CPU load
@@ -153,7 +153,7 @@ sqldf(); gc()
 
 
 
-##### Simulate dispersal from pre-generated data ----------------------------------------------------------
+##### [Deprecated] Simulate dispersal from pre-generated data ---------------------------------------------
 
 # Set vector of indices to pull from dispersal heights
 disp_index <- rep(1, length(opt_ht))
@@ -184,7 +184,7 @@ return(dists)}
 
 
 
-##### 2D expansion ----------------------------------------------------------------------------------------
+##### [Unused] 2D expansion -------------------------------------------------------------------------------
 
 # Estimate dispersal distances from given point; assume 1m plant height
 kern <- function(n, x0 = 0, y0 = 0){
@@ -254,4 +254,79 @@ vals <- c(vals, max(sqrt((plants$x)^2 + (plants$y)^2)))
 
 # Get wavespeeds
 diff(vals)
+
+
+
+
+
+##### [Deprecated] Other wavespeed-related functions ------------------------------------------------------
+
+# Function to check if individual is in max density window
+dens.eval <- function(d){
+  
+  # Match individual to window
+  i <- floor(d)
+  
+  # Check density of corresponding window
+  ifelse(denslist[i + 1] < tDens, return(0), return(1))}
+
+# Function to check if seed is within ant distance of window less than max density
+dens.near <- function(d){
+  
+  # Match individual to window
+  i <- floor(d)
+  
+  # Return 0 if near less-than max density window, else return 1
+  ifelse(FALSE %in% unique(denslist[max(0, (i - 50)):min((i + 50), length(denslist))] == 10),
+         return(0), return(1))}
+
+# Function to find nearest ant nests relative to seed location
+nestsearch <- function(d, range, sVec){
+  
+  # Calculate distance between seed and nests
+  dists <- nestsR - d
+  
+  # Only select nests inside the maximum search distance
+  # Then sort nests, with closest nest first
+  dists <- dists[abs(dists) <= range]
+  
+  # Get probability that seed is taken to each nest
+  # Note: we assume probability for each nest is not affected by presence of other nests
+  toProb <- ant(abs(dists), sVec)
+  toProb <- mapply(c, 1 - toProb, toProb, SIMPLIFY = FALSE)
+  
+  # Get success/failure for each nest
+  toNest <- sapply(toProb, sample, x = c(0, 1), size = 1, replace = FALSE)
+  
+  # Since only one nest can take the seed, give priority to closest nest
+  # If seed is not taken to any nest, then keep current seed position
+  ifelse(sum(toNest) == 0, return(d), return(d + dists[min(which(toNest == 1))]))}
+
+# Function for probability of seed removal via ant
+ant <- function(dist, sVec){
+  
+  # Import vector of dispersal parameters
+  sParam <- sVec
+  
+  # Calculate probability of seed removal
+  prob <- exp(sParam[6] + sParam[7]*dist)
+  
+  # Return probability of seed removal
+  return(prob)}
+
+# Simulate survival on rosettes that are not in max density areas
+if(nrow(plants) > 1){
+  temp1 <- plants[sapply(plants$d, dens.eval) == 1, ]
+  temp2 <- plants[sapply(plants$d, dens.eval) == 0, ]
+  temp2 <- temp2[demo("surv", dVec, n = nrow(temp2)) == 1, ]
+  plants <- rbind(temp1, temp2)}
+
+# Simulate secondary seed dispersal via ants
+if(nestOn == TRUE){
+  temp1 <- sapply(seedsNew$d, dens.near)
+  temp2 <- seedsNew[meh1 == 0, ]
+  temp3 <- seedsNew[meh1 == 1, ]
+  clusterExport(cl, c("seedsEST", "nestsearch", "ant", "nestsR", "range", "sVec"))
+  temp3$d <- parSapply(cl, temp3$d, nestsearch, range = range, sVec = sVec)
+  seedsNew <- rbind(temp2, temp3)}
 
