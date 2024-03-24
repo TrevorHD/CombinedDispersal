@@ -1,7 +1,7 @@
-##### [F1] Plot snapshots of wave movement ----------------------------------------------------------------
+##### [F2] Plot snapshots of wave movement ----------------------------------------------------------------
 
 # Prepare graphics device
-tiff(filename = "Figures/Figure 1.tif", width = 2000, height = 3000, units = "px",
+tiff(filename = "Figures/Figure 2.tif", width = 2000, height = 3000, units = "px",
      res = 800, compression = "lzw")
 
 # Create blank page
@@ -48,7 +48,7 @@ dev.off()
 
 
 
-##### [F2] Create function to plot parameter elasticity ---------------------------------------------------
+##### [F3] Create function to plot parameter elasticity ---------------------------------------------------
 
 # Create placeholder data with elasticity for each scalable parameter
 temp <- data.frame(var = c("Vegetation height", "Mean wind speed", "SD wind speed",
@@ -63,7 +63,7 @@ temp <- data.frame(var = c("Vegetation height", "Mean wind speed", "SD wind spee
                    vals = seq(-1, 1, length.out = 21))
 
 # Prepare graphics device
-tiff(filename = "Figures/Figure 2.tif", width = 2000, height = 2000, units = "px",
+tiff(filename = "Figures/Figure 3.tif", width = 2000, height = 2000, units = "px",
      res = 800, compression = "lzw")
 
 # Create blank page
