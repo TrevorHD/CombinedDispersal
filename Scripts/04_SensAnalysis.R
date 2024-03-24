@@ -62,26 +62,34 @@ adsp.param <- function(aNum, aVal){
   return(aParam)}
 
 # [1] Seed predation enabled, ant dispersal enabled [unwarmed]
-set.seed(28360)
+set.seed(83568)
 aVec <- adsp.param(aNum = 1, aVal = 1)
 wVec <- wdsp.param(wNum = 1, wVal = 1)
+write.csv(wv_front, "Data/wv_front_a.csv")
+write.csv(wv_dens, "Data/wv_dens_a.csv")
 
 # [2] Seed predation enabled, ant dispersal enabled [warmed]
-set.seed(58334)
+set.seed(36583)
 aVec <- adsp.param(aNum = 1, aVal = 1)
 wVec <- wdsp.param(wNum = 1, wVal = 1)
+write.csv(wv_front, "Data/wv_front_b.csv")
+write.csv(wv_dens, "Data/wv_dens_b.csv")
 
 # [3] Seed predation disabled, ant dispersal disabled [unwarmed]
-set.seed(80011)
+set.seed(23633)
 aVec <- adsp.param(aNum = 4, aVal = 10)
 wVec <- wdsp.param(wNum = 1, wVal = 1)
 nestOn <- FALSE
+write.csv(wv_front, "Data/wv_front_c.csv")
+write.csv(wv_dens, "Data/wv_dens_c.csv")
 
-# [4] Seed predation disabled, ant dispersal disabled [unwarmed]
-set.seed(42842)
+# [4] Seed predation disabled, ant dispersal disabled [warmed]
+set.seed(29863)
 aVec <- adsp.param(aNum = 4, aVal = 10)
 wVec <- wdsp.param(wNum = 1, wVal = 1)
 nestOn <- FALSE
+write.csv(wv_front, "Data/wv_front_d.csv")
+write.csv(wv_dens, "Data/wv_dens_d.csv")
 
 
 

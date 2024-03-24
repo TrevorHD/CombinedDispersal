@@ -7,7 +7,7 @@ wdsp.param <- function(wNum, wVal){
   wParam <- c()
   
   # Set parameters for wind speed, seed terminal velocity, and vegetation height
-  wParam[1] <- 0.15                 # Vegetation height (m)
+  wParam[1] <- 0.150                # Vegetation height (m)
   wParam[2] <- disp_ws[1]           # Shape wind speed, Weibull dist.
   wParam[3] <- disp_ws[2]           # Scale wind speed, Weibull dist.
   wParam[4] <- disp_tv[1]           # Log mean terminal velocity, lognormal dist.
@@ -163,13 +163,13 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
   # Third term represents proportion of seeds not removed by ants or removed but not eaten
   # Fourth term represents proportion of seeds that will either establish or enter seed bank
   # Round up to nearest whole seed
-  if(dType == "seeds"){
+  if(dType == "seed"){
     nseed <- aParam[1]*aParam[2]*((1 - aParam[3]) + (aParam[3]*aParam[4]))*(1 - aParam[5] - aParam[6])
     return(ceiling(nseed))}
   
   # Removal of seeds by ants following primary dispersal
   # Probability recalculated to condition on individuals that did not experience predation
-  if(dType == "antRem"){
+  if(dType == "ants"){
     prob1 <- (aParam[3]*aParam[4])/((1 - aParam[3]) + (aParam[3]*aParam[4]))
     outcomes <- sample(c(1, 0), size = n, prob = c(prob1, 1 - prob1), replace = TRUE)
     return(outcomes)}
@@ -177,23 +177,23 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
   # Establishment of seeds not entering the seed bank
   # Probability recalculated to condition on individuals that did not experience post-predation death
   # We already accounted for post-predation death, so non-establishing seeds must enter seed bank
-  if(dType == "estNew"){
+  if(dType == "estb"){
     prob1 <- (aParam[5])/(aParam[5] + aParam[6])
     outcomes <- sample(c(1, 0), size = n, prob = c(prob1, 1 - prob1), replace = TRUE)
     return(outcomes)}
   
   # Establishment of seeds from the seed bank
-  if(dType == "estSB"){
+  if(dType == "SBestb"){
     outcomes <- sample(c(1, 0), size = n, prob = c(aParam[7], 1 - aParam[7]), replace = TRUE)
     return(outcomes)}
   
   # Survival of seeds in the seed bank
-  if(dType == "surSB"){
+  if(dType == "SBsurv"){
     outcomes <- sample(c(1, 0), size = n, prob = c(aParam[8], 1 - aParam[8]), replace = TRUE)
     return(outcomes)}
   
   # Initial rosette size upon establishment
-  if(dType == "rsize"){
+  if(dType == "size"){
     ros <- aParam[9] + rnorm(n, mean = 0, sd = aParam[10])
     return(ros)}
   
@@ -214,14 +214,14 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
   
   # Flower production as function of initial rosette size
   # Round any non-integers up to the nearest head, and negatives up to 1
-  if(dType == "heads"){
+  if(dType == "head"){
     head <- aParam[16] + aParam[17]*rsize + rnorm(length(rsize), mean = 0, sd = aParam[18])
     head <- ifelse(head <= 0, 1, head)
     return(ceiling(head))}
   
   # Distribution of flower heights for a given individual
   # Convert height from cm to m before returning values
-  if(dType == "height"){
+  if(dType == "hdht"){
     height <- aParam[19] + aParam[20]*area.i(rsize) + rnorm(length(rsize), mean = 0, sd = aParam[21])
     return(height/100)}}
 
