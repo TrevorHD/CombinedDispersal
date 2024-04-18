@@ -280,6 +280,32 @@ dens.near <- function(d){
   ifelse(FALSE %in% unique(denslist[max(0, (i - 50)):min((i + 50), length(denslist))] == 10),
          return(0), return(1))}
 
+# Function to calculate density per 1-m window
+dens.calc <- function(i, plants){
+  
+  # Get list of positions within a 1-m window
+  vals <- plants$d[plants$d >= i - 1 & plants$d < i]
+  
+  # Get number of plants in the same window
+  dens <- length(vals)
+  
+  # Return density
+  return(dens)}
+
+# Function to spread plants evenly in max-density windows
+# More realistic than leaving all plants in exact same position
+dens.spread <- function(i, plants){
+  
+  # Get list of plants within a 1-m window
+  vals <- plants[plants$d >= i - 1 & plants$d < i, ]
+  
+  # Spread plants evenly if at max density
+  if(nrow(vals) == tDens){
+    vals$d <- i - 1 + (0:(tDens - 1))/tDens}
+  
+  # Return updated dataframe of plants
+  return(vals)}
+
 # Function to find nearest ant nests relative to seed location
 nestsearch <- function(d, range, sVec){
   
@@ -313,6 +339,13 @@ ant <- function(dist, sVec){
   
   # Return probability of seed removal
   return(prob)}
+
+# Spread plants in max-density windows evenly across 1m
+# More realistic than having all plants in exact same position
+# Add back rosette at zero that is sometimes eliminated due to binSning issue
+plants <- bind_rows(lapply(1:ceiling(max(plants$d)), dens.spread, plants = plants))
+if(length(plants$d[plants$d < 1]) < tDens){
+  rbind(plants, data.frame(d = 0.1, stage = 0, rsize = adsp.demo("size", aVec, n = 1)))}
 
 # Simulate survival on rosettes that are not in max density areas
 if(nrow(plants) > 1){

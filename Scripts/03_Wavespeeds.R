@@ -1,5 +1,3 @@
-##### Simulate 1D expansion -------------------------------------------------------------------------------
-
 # Start system timer
 wv_time <- Sys.time()
 
@@ -22,49 +20,50 @@ for(i in 1:(nYear + 1)){
     
     # Generate nests
     nests <- sample(seq(0, nYear*200, by = 0.1), nDens*nYear*200) + 0.01
-    
-    # Initialise data; start with a single rosette
-    plants <- data.frame(d = 0.01, stage = 0, rsize = adsp.demo("size", aVec, n = 1))
-    seedsEST <- data.frame(matrix(ncol = 2, nrow = 0))
-    colnames(seedsEST) <- c("d", "germ")
-    seedsSB <- data.frame(matrix(ncol = 2, nrow = 0))
-    colnames(seedsSB) <- c("d", "germ")
     nestsR <- nests
+    
+    # Initialise data; start with a single rosette and no seeds
+    plants <- data.frame(d = 0.01, stage = 0, rsize = adsp.demo("size", aVec, n = 1))
+    seedsNew <- data.frame(matrix(ncol = 2, nrow = 0))
+    seedsEst <- data.frame(matrix(ncol = 2, nrow = 0))
+    seedsSB <- data.frame(matrix(ncol = 2, nrow = 0))
+    colnames(seedsNew) <- c("d", "germ")
+    colnames(seedsEst) <- c("d", "germ")
+    colnames(seedsSB) <- c("d", "germ")
     wv_front <- c()}
   
   # Simulate rosette survival and remove rosettes that do not survive
-  # Never kill when only one plant; prevents the simulation from failing
-  if(nrow(plants) > 1){
+  if(nrow(plants) > 0){
     plants <- plants[adsp.demo("surv", aVec, n = nrow(plants)) == 1, ]}
-  if(nrow(plants) == 0)
-    plants <- data.frame(d = 0.01, stage = 0, rsize = adsp.demo("size", aVec, n = 1))
   
   # Simulate rosette growth
   if(nrow(plants) > 0){
     plants$rsize = adsp.demo("grow", aVec, rsize = plants$rsize)}
   
   # Simulate bolting and flowering; individuals that don't will remain rosettes
-  plants$stage <- adsp.demo("flow", aVec, n = nrow(plants))
+  if(nrow(plants) > 0){
+    plants$stage <- adsp.demo("flow", aVec, n = nrow(plants))}
   
-  # Simulate primary dispersal via wind of viable seeds from flowering adults
+  # Estimate number of flower heads, then get the number of viable seeds and their release heights
   # Viable means surviving pre-/post-dispersal predation, and establishing or entering seed bank
-  # First estimate number of flower heads, and release height of the resulting seeds
-  # Then feed heights for each viable seed into the WALD model
   if(sum(plants$stage == 1) > 0){
     temp1 <- plants[plants$stage == 1, ]
     nflow <- adsp.demo("head", aVec, rsize = temp1$rsize)
     f1 <- adsp.demo("hdht", aVec, rsize = rep(temp1$rsize, times = nflow))
     s1 <- rep(adsp.demo("seed", aVec), times = sum(nflow))
-    d1 <- rep(temp1$d, times = nflow)
+    d1 <- rep(temp1$d, times = nflow)}
+  
+  # Simulate primary dispersal of viable seeds via wind
+  if(sum(s1) > 0){
     clusterExport(cl, c("wdsp.disp", "wdsp.wald", "s1", "f1", "d1", "wVec"))
-    seedsNew <- unlist(clusterMap(cl, wdsp.disp, n = s1, h = f1, d0 = d1,
+    seedsNew <- unlist(clusterMap(cl, wdsp.disp, n = s1, H = f1, d0 = d1,
                                   MoreArgs = list(wVec = wVec)))
     seedsNew <- data.frame(cbind(seedsNew, rep(0, length(seedsNew))))
     names(seedsNew) <- c("d", "germ")
     seedsNew <- seedsNew[seedsNew$d >= 0, ]}
   
   # Simulate secondary seed dispersal via ants
-  if(nestOn == TRUE){
+  if(nrow(seedsNew) > 0 & nestOn == TRUE){
     temp2 <- adsp.demo("ants", aVec, n = nrow(seedsNew))
     temp3 <- seedsNew[temp2 == 1, ]
     temp4 <- seedsNew[temp2 == 0, ]
@@ -73,9 +72,10 @@ for(i in 1:(nYear + 1)){
     seedsNew <- rbind(temp3, temp4)}
   
   # Simulate establishment from dispersed seeds not in seed bank
-  seedsNew$germ <- adsp.demo("estb", aVec, n = nrow(seedsNew))
-  seedsEST <- na.omit(rbind(seedsEST, seedsNew[seedsNew$germ == 1, ]))
-  seedsNew <- seedsNew[seedsNew$germ == 0, ]
+  if(nrow(seedsNew) > 0){
+    seedsNew$germ <- adsp.demo("estb", aVec, n = nrow(seedsNew))
+    seedsEst <- na.omit(rbind(seedsEst, seedsNew[seedsNew$germ == 1, ]))
+    seedsNew <- seedsNew[seedsNew$germ == 0, ]}
   
   # Simulate survival, then establishment, of seeds already in seed bank
   if(nrow(seedsSB) > 0){
@@ -86,9 +86,9 @@ for(i in 1:(nYear + 1)){
       temp5$germ <- rep(1, nrow(temp5))}
     if(nrow(seedsSB) > 0){
       seedsSB <- seedsSB[vec == 0, ]
-      seedsEST <- na.omit(rbind(seedsEST, temp5))}}
+      seedsEst <- na.omit(rbind(seedsEst, temp5))}}
   
-  # Simulate entry of non-establishing seeds into seed bank
+  # All remaining seeds not experiencing post-predation death enter seed bank
   # Then reset all seeds already assigned to establishment or seed bank
   if(nrow(seedsNew) > 0){
     seedsNew$germ <- rep(0, nrow(seedsNew))
@@ -96,21 +96,23 @@ for(i in 1:(nYear + 1)){
   seedsNew <- data.frame(matrix(ncol = 2, nrow = 0))
   colnames(seedsNew) <- c("d", "germ")
   
-  # Kill adults that have successfully reproduced
+  # Kill adults that have bolted and/or reproduced
   plants <- plants[plants$stage == 0, ]
   
   # Simulate rosette size of established individuals
   # Then reset seeds that have been assigned to establishment
-  seedsEST$stage <- rep(0, nrow(seedsEST))
-  seedsEST$rsize <- adsp.demo("size", aVec, n = nrow(seedsEST))
-  seedsEST <- seedsEST[, !names(seedsEST) == c("germ")]
-  plants <- rbind(plants, seedsEST)
-  seedsEST <- data.frame(matrix(ncol = 2, nrow = 0))
-  colnames(seedsEST) <- c("d", "germ")
+  if(nrow(seedsEst) > 0){
+    seedsEst$stage <- rep(0, nrow(seedsEst))
+    seedsEst$rsize <- adsp.demo("size", aVec, n = nrow(seedsEst))
+    seedsEst <- seedsEst[, !names(seedsEst) == c("germ")]
+    plants <- rbind(plants, seedsEst)
+    seedsEst <- data.frame(matrix(ncol = 2, nrow = 0))
+    colnames(seedsEst) <- c("d", "germ")}
   
   # Kill new rosettes if density exceeds maximum
+  if(tDens == 0){
+    plants <- plants[-c(1:nrow(plants)), ]}
   if(nrow(plants) > 0){
-    plants$d <- plants$d + 0.01
     plants %>% 
       filter(d > 0) %>%
       mutate(bin = as.integer(cut(d, breaks = seq(0, ceiling(max(plants$d)), 1)), right = FALSE)) %>% 
@@ -120,15 +122,9 @@ for(i in 1:(nYear + 1)){
       data.frame() -> plants
     plants <- plants[, !names(plants) == c("bin")]}
   
-  # Spread plants in max-density windows evenly across 1m
-  # More realistic than having all plants in exact same position
-  # Add back rosette at zero that is sometimes eliminated due to binning issue
-  plants <- bind_rows(lapply(1:ceiling(max(plants$d)), dens.spread, plants = plants))
-  if(length(plants$d[plants$d < 1]) < tDens){
-    rbind(plants, data.frame(d = 0.1, stage = 0, rsize = adsp.demo("size", aVec, n = 1)))}
-  
-  # Update window densities after killing off adults that reproduced
-  wv_dens <- sapply(1:ceiling(max(plants$d)), dens.calc, plants = plants)
+  # If no plants remain (unlikely), reset at origin so that simulation does not fail
+  if(nrow(plants) < 1){
+    plants <- data.frame(d = 0.01, stage = 0, rsize = adsp.demo("size", aVec, n = 1))}
   
   # Store wavefront distance
   wv_front <- c(wv_front, max(plants$d))
@@ -155,7 +151,7 @@ for(i in 1:(nYear + 1)){
 stopCluster(cl)
 
 # Remove variables no longer in use
-remove(plants, seedsEST, seedsNew, seedsSB, temp1, temp2, temp3, temp4, temp5, d1, f1, i,
+remove(plants, seedsEst, seedsNew, seedsSB, temp1, temp2, temp3, temp4, temp5, d1, f1, i,
        nDens, nestOn, nests, nestsR, nflow, nYear, plotOn, range, s1, tDens, trim, trimAmt, vec)
 
 # Print final completion message

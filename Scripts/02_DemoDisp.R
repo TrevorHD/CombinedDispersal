@@ -10,9 +10,9 @@ adsp.param <- function(aNum, aVal){
   aParam[1] <- 476                  # Seeds per flower head
   aParam[2] <- 0.850                # Prob. of surviving pre-dispersal seed predation (florivory)
   aParam[3] <- 0.948                # Prob. of seed removal by ants
-  aParam[4] <- 0.100                # Prob. of surviving post-dispersal seed predation by ants
+  aParam[4] <- 0.100                # Prob. of surviving post-dispersal seed predation if removed by ants
   aParam[5] <- 0.233                # Prob. of establishment from seed
-  aParam[6] <- 0.233                # Prob. of seed entering seed bank
+  aParam[6] <- 0.233                # Prob. of seed entering seed bank if not establishing
   aParam[7] <- 0.233                # Prob. of seed establishing from seed bank
   aParam[8] <- 0.260                # Prob. of seed survival in seed bank
   
@@ -52,71 +52,81 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
   aParam <- aVec
   
   # Per-head production of seeds, and subsequent pre-/post-dispersal seed survival
-  # Product of first two terms represents number of viable seeds that survive florivory
-  # Third term represents proportion of seeds not removed by ants or removed but not eaten
-  # Fourth term represents proportion of seeds that will either establish or enter seed bank
+  # First term is number of viable seeds that survive florivory
+  # Second term is proportion of seeds not removed by ants, or removed by ants but not eaten
+  # Third term is proportion of seeds that will either establish, or not establish but enter seed bank
   # Round up to nearest whole seed
   if(dType == "seed"){
-    nseed <- aParam[1]*aParam[2]*((1 - aParam[3]) + (aParam[3]*aParam[4]))*(1 - aParam[5] - aParam[6])
-    return(ceiling(nseed))}
+    seed <- aParam[1]*aParam[2]
+    prop1 <- ((1 - aParam[3]) + (aParam[3]*aParam[4]))
+    prop2 <- (aParam[5] + (1 - aParam[5])*aParam[6])
+    vals <- ceiling(seed*prop1*prop2)
+    return(vals)}
   
   # Removal of seeds by ants following primary dispersal
   # Probability recalculated to condition on individuals that did not experience predation
   if(dType == "ants"){
-    prob1 <- (aParam[3]*aParam[4])/((1 - aParam[3]) + (aParam[3]*aParam[4]))
-    outcomes <- sample(c(1, 0), size = n, prob = c(prob1, 1 - prob1), replace = TRUE)
-    return(outcomes)}
+    prob <- (aParam[3]*aParam[4])/((1 - aParam[3]) + (aParam[3]*aParam[4]))
+    vals <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
+    return(vals)}
   
   # Establishment of seeds not entering the seed bank
   # Probability recalculated to condition on individuals that did not experience post-predation death
   # We already accounted for post-predation death, so non-establishing seeds must enter seed bank
   if(dType == "estb"){
-    prob1 <- (aParam[5])/(aParam[5] + aParam[6])
-    outcomes <- sample(c(1, 0), size = n, prob = c(prob1, 1 - prob1), replace = TRUE)
-    return(outcomes)}
+    prob <- (aParam[5])/(aParam[5] + (1 - aParam[5])*aParam[6])
+    vals <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
+    return(vals)}
   
   # Establishment of seeds from the seed bank
   if(dType == "SBestb"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(aParam[7], 1 - aParam[7]), replace = TRUE)
-    return(outcomes)}
+    vals <- sample(c(1, 0), size = n, prob = c(aParam[7], 1 - aParam[7]), replace = TRUE)
+    return(vals)}
   
   # Survival of seeds in the seed bank
   if(dType == "SBsurv"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(aParam[8], 1 - aParam[8]), replace = TRUE)
-    return(outcomes)}
+    vals <- sample(c(1, 0), size = n, prob = c(aParam[8], 1 - aParam[8]), replace = TRUE)
+    return(vals)}
   
   # Initial rosette size upon establishment
+  # Round negatives up to zero
   if(dType == "size"){
-    ros <- aParam[9] + rnorm(n, mean = 0, sd = aParam[10])
-    return(ros)}
+    vals <- aParam[9] + rnorm(n, mean = 0, sd = aParam[10])
+    vals[vals < 0] <- 0
+    return(vals)}
   
   # Rosette survival before growth stage
   if(dType == "surv"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(aParam[11], 1 - aParam[11]), replace = TRUE)
-    return(outcomes)}
+    vals <- sample(c(1, 0), size = n, prob = c(aParam[11], 1 - aParam[11]), replace = TRUE)
+    return(vals)}
   
-  # Rosette growth from t0 to t1
+  # Rosette size after growth
+  # Round negatives up to zero
   if(dType == "grow"){
-    size <- aParam[12] + aParam[13]*rsize + rnorm(length(rsize), mean = 0, sd = aParam[14])
-    return(size)}
+    vals <- aParam[12] + aParam[13]*rsize + rnorm(length(rsize), mean = 0, sd = aParam[14])
+    vals[vals < 0] <- 0
+    return(vals)}
   
   # Flowering probability as function of initial rosette size
   if(dType == "flow"){
-    outcomes <- sample(c(1, 0), size = n, prob = c(aParam[15], 1 - aParam[15]), replace = TRUE)
-    return(outcomes)}
+    vals <- sample(c(1, 0), size = n, prob = c(aParam[15], 1 - aParam[15]), replace = TRUE)
+    return(vals)}
   
   # Flower production as function of initial rosette size
-  # Round any non-integers up to the nearest head, and negatives up to 1
+  # Round Round negatives up to zero, and any non-integers up to the nearest head
   if(dType == "head"){
-    head <- aParam[16] + aParam[17]*rsize + rnorm(length(rsize), mean = 0, sd = aParam[18])
-    head <- ifelse(head <= 0, 1, head)
-    return(ceiling(head))}
+    vals <- aParam[16] + aParam[17]*exp(rsize) + rnorm(length(rsize), mean = 0, sd = aParam[18])
+    vals[vals < 0] <- 0
+    vals <- ceiling(vals)
+    return(vals)}
   
   # Distribution of flower heights for a given individual
-  # Convert height from cm to m before returning values
+  # Round negatives up to zero, and convert height from cm to m before returning values
   if(dType == "hdht"){
-    height <- aParam[19] + aParam[20]*area.i(rsize) + rnorm(length(rsize), mean = 0, sd = aParam[21])
-    return(height/100)}}
+    vals <- aParam[19] + aParam[20]*area.i(rsize) + rnorm(length(rsize), mean = 0, sd = aParam[21])
+    vals[vals < 0] <- 0
+    vals <- vals/100
+    return(vals)}}
 
 # Function to see if a seed is taken to the nearest ant nest
 adsp.disp <- function(d, range){
@@ -126,7 +136,6 @@ adsp.disp <- function(d, range){
   
   # Select the closest nest (i.e. smallest absolute distance)
   dist <- dist[which.min(abs(dist))]
-  
   if(identical(dist, numeric(0)) == TRUE){
     dist <- 0}
   
@@ -153,7 +162,7 @@ wdsp.param <- function(wNum, wVal){
   wParam[5] <- disp_tv[2]           # Log SD terminal velocity, lognormal dist.
   wParam[6] <- 0.056                # Probability of seed release from capitulum
   
-  # Note: if transforming wind speeds, use wNum=2 for mean and wNum=3 for SD
+  # Note: if transforming wind speeds, use wNum = 2 for mean and wNum = 3 for SD
   # Note: transformation on TV parameters transforms mean/SD, NOT log mean/SD
   if(wNum == 1){
     wParam[1] <- wParam[1]*wVal}
@@ -165,7 +174,7 @@ wdsp.param <- function(wNum, wVal){
     wParam[c(4, 5)] <- transform.ln(wParam[wNum], wParam[wNum + 1], wVal, "mean")}
   if(wNum == 5){
     wParam[c(4, 5)] <- transform.ln(wParam[wNum - 1], wParam[wNum], wVal, "sd")}
-  if(wNum == 8){
+  if(wNum == 6){
     wParam[6] <- wParam[6]*wVal}
   
   # Return vector of dispersal parameters
@@ -194,8 +203,8 @@ wdsp.wald <- function(n, H, wVec){
   nr <- round(n*wParam[6], 0)
   nf <- n - nr
   
-  # Simulate wind dispersal if released above canopy
-  if(H > h){
+  # Simulate wind dispersal if 1 or more seeds released above canopy
+  if(H > h & nr > 0){
     
     # Simulate wind speeds from Weibull distribution
     Um <- rweibull(nr, wParam[2], wParam[3])
@@ -231,12 +240,12 @@ wdsp.wald <- function(n, H, wVec){
     dists <- c(dists, rep(0, nf))
     return(dists)}
   
-  # No dispersal if released below canopy
-  if(H <= h){
+  # No dispersal if no seeds are released above canopy
+  if(H <= h | nr == 0){
     return(rep(0, n))}}
 
 # Function to estimate dispersal distances from given point
-wdsp.disp <- function(n, h, wVec, d0 = 0){
-  d <- wdsp.wald(n, h, wVec) + d0
+wdsp.disp <- function(n, H, wVec, d0 = 0){
+  d <- wdsp.wald(n, H, wVec) + d0
   return(d)}
 
