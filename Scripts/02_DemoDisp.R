@@ -16,17 +16,17 @@ adsp.param <- function(aNum, aVal){
   aParam[7] <- 0.233                # Prob. of seed establishing from seed bank
   aParam[8] <- 0.260                # Prob. of seed survival in seed bank
   
-  # Parameters for log initial rosette area after establishment
+  # Parameters for log initial rosette size after establishment
   aParam[9] <- demo_rose            # Rosette size t0 intercept
   aParam[10] <- demo_rose_err       # Rosette size t0 model SD
   
-  # Parameters for rosette survival, and growth as function of log rosette area
+  # Parameters for rosette survival, and growth as function of log rosette size
   aParam[11] <- demo_surv           # Prob. survival
   aParam[12] <- demo_grow_NW[1]     # Rosette size t1 intercept
   aParam[13] <- demo_grow_NW[2]     # Rosette size t1 size-slope
   aParam[14] <- demo_grow_err       # Mean growth model SD
   
-  # Parameters for flowering probability, and head production as function of log rosette area
+  # Parameters for flowering probability, and head production as function of rosette size
   aParam[15] <- demo_flow           # Prob. flowering
   aParam[16] <- demo_head_NW[1]     # Num. heads intercept
   aParam[17] <- demo_head_NW[2]     # Num. heads size-slope
@@ -113,9 +113,9 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
     return(vals)}
   
   # Flower production as function of initial rosette size
-  # Round Round negatives up to zero, and any non-integers up to the nearest head
+  # Round negatives up to zero, and any non-integers up to the nearest head
   if(dType == "head"){
-    vals <- aParam[16] + aParam[17]*exp(rsize) + rnorm(length(rsize), mean = 0, sd = aParam[18])
+    vals <- exp(aParam[16] + aParam[17]*rsize + rnorm(length(rsize), mean = 0, sd = aParam[18]))
     vals[vals < 0] <- 0
     vals <- ceiling(vals)
     return(vals)}
@@ -123,7 +123,7 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
   # Distribution of flower heights for a given individual
   # Round negatives up to zero, and convert height from cm to m before returning values
   if(dType == "hdht"){
-    vals <- aParam[19] + aParam[20]*area.i(rsize) + rnorm(length(rsize), mean = 0, sd = aParam[21])
+    vals <- aParam[19] + aParam[20]*rsize + rnorm(length(rsize), mean = 0, sd = aParam[21])
     vals[vals < 0] <- 0
     vals <- vals/100
     return(vals)}}

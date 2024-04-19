@@ -109,7 +109,8 @@ for(i in 1:(nYear + 1)){
     seedsEst <- data.frame(matrix(ncol = 2, nrow = 0))
     colnames(seedsEst) <- c("d", "germ")}
   
-  # Kill new rosettes if density exceeds maximum
+  # Kill any rosettes in excess of maximum density per metre
+  # Larger rosettes get priority when selecting which ones are kept
   if(tDens == 0){
     plants <- plants[-c(1:nrow(plants)), ]}
   if(nrow(plants) > 0){

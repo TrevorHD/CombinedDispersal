@@ -76,48 +76,40 @@ data_ht %>%
   summarise(Height_PA = mean(Height)) -> data_ht_PA
 data_ht_PA$DM_t1_PA <- data_rs_PA$DM_t1_PA
 
-# Create function to calculate rosette area from diameter
-# Also create inverse function that does the opposite
-area <- function(diam){
-  return(log(pi*(diam/2)^2))}
-area.i <- function(area){
-  return(2*sqrt(exp(area)/pi))}
-
 
 
 
 
 ##### Get mean and SD for initial rosette size distributions ----------------------------------------------
 
-# Plot data; means/SD seem similar between treatments, should investigate further though
-plot(density(area(data_rs_PA$DM_t_PA)[which(data_rs_PA$TRT == "W")]), col = "red",
-     xlim = c(2, 7), ylim = c(0, 1.2))
-lines(density(area(data_rs_PA$DM_t_PA)[which(data_rs_PA$TRT == "NW")]), col = "blue")
+# Plot data; mean and SD seem similar between treatments
+plot(density(data_rs_PA$DM_t_PA[which(data_rs_PA$TRT == "W")]), col = "red",
+     xlim = c(0, 25), ylim = c(0, 0.3))
+lines(density(data_rs_PA$DM_t_PA[which(data_rs_PA$TRT == "NW")]), col = "blue")
 
 # Model initial rosette size at establishment as function of warming treatment
-demo_rose <- lmer(area(DM_t_PA) ~ TRT + (1|Group), data = data_rs_PA)
+demo_rose <- lmer(DM_t_PA ~ TRT + (1|Group), data = data_rs_PA)
 
 # Then perform stepwise selection to minimise AIC
 step(demo_rose)
 
 # Dropping warming term minimises AIC
-demo_rose <- lmer(area(DM_t_PA) ~ (1|Group), data = data_rs_PA)
+demo_rose <- lmer(DM_t_PA ~ (1|Group), data = data_rs_PA)
 summary(demo_rose)
 
 # Model assumes residuals are normal around zero; assumption holds up
-# Shapiro test is sensitive to distribution tails, so take p-value with some skepticism
 # No patterns or heteroskedasticity in residuals also indicates reasonable fit
 shapiro.test(resid(demo_rose))
 ks.test(resid(demo_rose), pnorm, mean = 0, sd = sd(resid(demo_rose)))
-plot(density(resid(demo_rose)), xlim = c(-2, 2), ylim = c(0, 1.2))
-plot(demo_rose, xlim = c(3.4, 5.1), ylim = c(-1.6, 1.6))
-qqnorm(resid(demo_rose), xlim = c(-3, 3), ylim = c(-2, 2))
+plot(density(resid(demo_rose)), xlim = c(-10, 10), ylim = c(0, 0.25))
+plot(demo_rose, xlim = c(8.8, 13.2), ylim = c(-6.5, 6.5))
+qqnorm(resid(demo_rose), xlim = c(-3, 3), ylim = c(-7, 7))
 qqline(resid(demo_rose))
 
 # Variances of error terms do not differ significantly between treatment groups
 # We can thus model the error as normal with mean zero and SD agnostic of treatment
 plot(density(resid(demo_rose)[which(data_rs_PA$TRT == "W")]), col = "red",
-     xlim = c(-2, 2), ylim = c(0, 1.2))
+     xlim = c(-10, 10), ylim = c(0, 0.25))
 lines(density(resid(demo_rose)[which(data_rs_PA$TRT == "NW")]), col = "blue")
 ks.test(resid(demo_rose)[which(data_rs_PA$TRT == "W")],
         resid(demo_rose)[which(data_rs_PA$TRT == "NW")])
@@ -130,9 +122,9 @@ demo_rose <- fixef(demo_rose)
 
 # Test model fit; seems reasonable
 set.seed(979027427)
-temp1 <- area(data_rs_PA$DM_t_PA)
+temp1 <- data_rs_PA$DM_t_PA
 temp2 <- rep(demo_rose, length(temp1)) + rnorm(length(temp1), mean = 0, sd = demo_rose_err)
-plot(density(temp1), col = "green", xlim = c(2, 7), ylim = c(0, 1.2))
+plot(density(temp1), col = "green", xlim = c(0, 25), ylim = c(0, 0.3))
 lines(density(temp2), col = "green4")
 ks.test(temp1, temp2)
 
@@ -165,27 +157,27 @@ demo_surv <- mean(data_rs_PA$Survival_PA)
 temp1 <- data_rs_PA$TRT
 temp1[temp1 == "W"] <- "red"
 temp1[temp1 == "NW"] <- "blue"
-plot(area(data_rs_PA$DM_t_PA), area(data_rs_PA$DM_t1_PA),
-     xlim = c(2, 6), ylim = c(5.5, 7.5), col = temp1)
+plot(data_rs_PA$DM_t_PA, data_rs_PA$DM_t1_PA,
+     xlim = c(0, 25), ylim = c(0, 60), col = temp1)
 
-# Model rosette area at t1 as a function of rosette area at t0; include warming and interaction
-demo_grow <- lmer(area(DM_t1_PA) ~ area(DM_t_PA) + TRT + TRT:area(DM_t_PA) + (1|Group),
+# Model rosette size at t1 as a function of rosette size at t0; include warming and interaction
+demo_grow <- lmer(DM_t1_PA ~ DM_t_PA + TRT + TRT:DM_t_PA + (1|Group),
                   data = data_rs_PA)
 
 # Then perform stepwise selection to minimise AIC
 step(demo_grow)
 
 # Dropping interaction term minimises AIC
-demo_grow <- lmer(area(DM_t1_PA) ~ area(DM_t_PA) + TRT + (1|Group), data = data_rs_PA)
+demo_grow <- lmer(DM_t1_PA ~ DM_t_PA + TRT + (1|Group), data = data_rs_PA)
 summary(demo_grow)
 
 # Model assumes residuals are normal around zero; assumption holds up
 # No patterns or heteroskedasticity in residuals also indicates reasonable fit
 shapiro.test(resid(demo_grow))
 ks.test(resid(demo_grow), pnorm, mean = 0, sd = sd(resid(demo_grow)))
-plot(demo_grow, xlim = c(5.9, 7.3), ylim = c(-1.1, 1.1))
-plot(density(resid(demo_grow)), xlim = c(-1, 1), ylim = c(0, 2))
-qqnorm(resid(demo_grow), xlim = c(-3, 3), ylim = c(-1, 1))
+plot(density(resid(demo_grow)), xlim = c(-15, 15), ylim = c(0, 0.12))
+plot(demo_grow, xlim = c(19, 46), ylim = c(-8, 8))
+qqnorm(resid(demo_grow), xlim = c(-3, 3), ylim = c(-10, 10))
 qqline(resid(demo_grow))
 
 # Store model coefficients
@@ -195,7 +187,7 @@ demo_grow_W <- fixef(demo_grow)[c(1, 2)] + c(fixef(demo_grow)[3], 0)
 # Variances of error terms do not differ significantly between treatment groups
 # We can thus model the error as normal with mean zero and SD agnostic of treatment
 plot(density(resid(demo_grow)[which(data_rs_PA$TRT == "W")]), col = "red",
-     xlim = c(-1, 1), ylim = c(0, 2))
+     xlim = c(-15, 15), ylim = c(0, 0.12))
 lines(density(resid(demo_grow)[which(data_rs_PA$TRT == "NW")]), col = "blue")
 ks.test(resid(demo_grow)[which(data_rs_PA$TRT == "W")],
         resid(demo_grow)[which(data_rs_PA$TRT == "NW")])
@@ -207,19 +199,19 @@ demo_grow_err <- sd(resid(demo_grow))
 
 # Test model fit (warmed); seems reasonable
 set.seed(386589364)
-temp2 <- area(subset(data_rs_PA, TRT == "W")$DM_t1_PA)
-temp3 <- demo_grow_W[1] + demo_grow_W[2]*area(subset(data_rs_PA, TRT == "W")$DM_t_PA) +
+temp2 <- subset(data_rs_PA, TRT == "W")$DM_t1_PA
+temp3 <- demo_grow_W[1] + demo_grow_W[2]*subset(data_rs_PA, TRT == "W")$DM_t_PA +
   rnorm(length(temp2), mean = 0, sd = demo_grow_err)
-plot(density(temp2), col = "red", xlim = c(5, 8), ylim = c(0, 2))
+plot(density(temp2), col = "red", xlim = c(10, 50), ylim = c(0, 0.15))
 lines(density(temp3), col = "red4")
 ks.test(temp2, temp3)
 
 # Test model fit (unwarmed); seems reasonable
 set.seed(386589364)
-temp2 <- area(subset(data_rs_PA, TRT == "NW")$DM_t1_PA)
-temp3 <- demo_grow_NW[1] + demo_grow_NW[2]*area(subset(data_rs_PA, TRT == "NW")$DM_t_PA) +
+temp2 <- subset(data_rs_PA, TRT == "NW")$DM_t1_PA
+temp3 <- demo_grow_NW[1] + demo_grow_NW[2]*subset(data_rs_PA, TRT == "NW")$DM_t_PA +
   rnorm(length(temp2), mean = 0, sd = demo_grow_err)
-plot(density(temp2), col = "blue", xlim = c(5, 8), ylim = c(0, 2))
+plot(density(temp2), col = "blue", xlim = c(10, 50), ylim = c(0, 0.15))
 lines(density(temp3), col = "blue4")
 ks.test(temp2, temp3)
 
@@ -248,34 +240,34 @@ demo_flow <- mean(data_rs_PA$Flowering_PA)
 
 ##### Get equations for number of flower heads ------------------------------------------------------------
 
-# Plot data; point trend is slightly exponential, so transform predictor as exponential
+# Plot data; point trend is slightly exponential, so log transform response
 # Linear model seems like a reasonable choice after transformation
 temp1 <- data_rs_PA$TRT
 temp1[temp1 == "W"] <- "red"
 temp1[temp1 == "NW"] <- "blue"
-plot(area(data_rs_PA$DM_t1_PA), data_rs_PA$Heads_PA,
-     xlim = c(5.5, 7.5), ylim = c(0, 20), col = temp1)
-plot(exp(area(data_rs_PA$DM_t1_PA)), data_rs_PA$Heads_PA,
-     xlim = c(300, 1500), ylim = c(0, 20), col = temp1)
+plot(data_rs_PA$DM_t1_PA, data_rs_PA$Heads_PA,
+     xlim = c(0, 50), ylim = c(0, 20), col = temp1)
+plot(data_rs_PA$DM_t1_PA, log(data_rs_PA$Heads_PA),
+     xlim = c(0, 50), ylim = c(0, 4), col = temp1)
 
-# Model flower head count as a function of exp. rosette area at t1; include warming and interaction
-demo_head <- lmer(Heads_PA ~ exp(area(DM_t1_PA)) + TRT + TRT:exp(area(DM_t1_PA)) + (1|Group),
+# Model log flower head count as a function of size at t1; include warming and interaction
+demo_head <- lmer(log(Heads_PA) ~ DM_t1_PA + TRT + TRT:DM_t1_PA + (1|Group),
                   data = data_rs_PA)
 
 # Perform stepwise selection to minimise AIC
 step(demo_head)
 
 # Dropping interaction term minimises AIC
-demo_head <- lmer(Heads_PA ~ exp(area(DM_t1_PA)) + TRT + (1|Group), data = data_rs_PA)
+demo_head <- lmer(log(Heads_PA) ~ DM_t1_PA + TRT + (1|Group), data = data_rs_PA)
 summary(demo_head)
 
 # Model assumes residuals are normal around zero; assumption holds up
 # No patterns or heteroskedasticity in residuals also indicates reasonable fit
 shapiro.test(resid(demo_head))
 ks.test(resid(demo_head), pnorm, mean = 0, sd = sd(resid(demo_head)))
-plot(demo_head, xlim = c(-1, 21), ylim = c(-4.3, 4.3))
-plot(density(resid(demo_head)), xlim = c(-8, 8), ylim = c(0, 0.3))
-qqnorm(resid(demo_head), xlim = c(-3, 3), ylim = c(-5, 5))
+plot(density(resid(demo_head)), xlim = c(-1.5, 1.5), ylim = c(0, 2))
+plot(demo_head, xlim = c(0.8, 3.2), ylim = c(-1.1, 1.1))
+qqnorm(resid(demo_head), xlim = c(-3, 3), ylim = c(-1, 1))
 qqline(resid(demo_head))
 
 # Store model coefficients
@@ -285,7 +277,7 @@ demo_head_W <- fixef(demo_head)[c(1, 2)] + c(fixef(demo_head)[3], 0)
 # Variances of error terms do not differ significantly between treatment groups
 # We can thus model the error as normal with mean zero and SD agnostic of treatment
 plot(density(resid(demo_head)[which(data_rs_PA$TRT == "W")]), col = "red",
-     xlim = c(-8, 8), ylim = c(0, 0.3))
+     xlim = c(-1.5, 1.5), ylim = c(0, 2))
 lines(density(resid(demo_head)[which(data_rs_PA$TRT == "NW")]), col = "blue")
 ks.test(resid(demo_head)[which(data_rs_PA$TRT == "W")],
         resid(demo_head)[which(data_rs_PA$TRT == "NW")])
@@ -298,18 +290,18 @@ demo_head_err <- sd(resid(demo_head))
 # Test model fit (warmed); seems reasonable
 set.seed(927494733)
 temp2 <- subset(data_rs_PA, TRT == "W")$Heads_PA
-temp3 <- demo_head_W[1] + demo_head_W[2]*exp(area(subset(data_rs_PA, TRT == "W")$DM_t1_PA)) +
-  rnorm(length(temp2), mean = 0, sd = demo_head_err)
-plot(density(temp2), col = "red", xlim = c(-5, 20), ylim = c(0, 0.3))
+temp3 <- exp(demo_head_W[1] + demo_head_W[2]*subset(data_rs_PA, TRT == "W")$DM_t1_PA +
+               rnorm(length(temp2), mean = 0, sd = demo_head_err))
+plot(density(temp2), col = "red", xlim = c(-5, 25), ylim = c(0, 0.3))
 lines(density(temp3), col = "red4")
 ks.test(temp2, temp3)
 
 # Test model fit (unwarmed); seems reasonable
-set.seed(927494737)
+set.seed(927494733)
 temp2 <- subset(data_rs_PA, TRT == "NW")$Heads_PA
-temp3 <- demo_head_NW[1] + demo_head_NW[2]*exp(area(subset(data_rs_PA, TRT == "NW")$DM_t1_PA)) +
-  rnorm(length(temp2), mean = 0, sd = demo_head_err)
-plot(density(temp2), col = "blue", xlim = c(-5, 20), ylim = c(0, 0.3))
+temp3 <- exp(demo_head_NW[1] + demo_head_NW[2]*subset(data_rs_PA, TRT == "NW")$DM_t1_PA +
+               rnorm(length(temp2), mean = 0, sd = demo_head_err))
+plot(density(temp2), col = "blue", xlim = c(-5, 25), ylim = c(0, 0.3))
 lines(density(temp3), col = "blue4")
 ks.test(temp2, temp3)
 
@@ -327,12 +319,10 @@ temp1 <- data_ht_PA$TRT
 temp1[temp1 == "W"] <- "red"
 temp1[temp1 == "NW"] <- "blue"
 plot(data_ht_PA$DM_t1_PA, data_ht_PA$Height_PA,
-     xlim = c(10, 50), ylim = c(55, 145), col = temp1)
+     xlim = c(0, 50), ylim = c(0, 145), col = temp1)
 
 # Model flower head height as a function of rosette size; include warming and interaction
-# Keep structure consistent with Drees and Shea (2023) by using diameter as covariate instead of area
-# However, use diameter at t1 instead of t0; makes more sense in our Demo + Dispersal model framework
-# Thus, parameter estimates will be slightly different compared to Drees and Shea (2023)
+# Note use of t1 size instead of t0; model is thus slightly different than Drees and Shea (2023)
 demo_hdht <- lmer(Height_PA ~ DM_t1_PA + TRT + TRT:DM_t1_PA + (1|Group), data = data_ht_PA)
 
 # Perform stepwise selection to minimise AIC
@@ -346,8 +336,8 @@ summary(demo_hdht)
 # No patterns or heteroskedasticity in residuals also indicates reasonable fit
 shapiro.test(resid(demo_hdht))
 ks.test(resid(demo_hdht), pnorm, mean = 0, sd = sd(resid(demo_hdht)))
-plot(demo_hdht, xlim = c(67, 133), ylim = c(-32, 32))
 plot(density(resid(demo_hdht)), xlim = c(-40, 40), ylim = c(0, 0.06))
+plot(demo_hdht, xlim = c(67, 133), ylim = c(-32, 32))
 qqnorm(resid(demo_hdht), xlim = c(-3, 3), ylim = c(-25, 25))
 qqline(resid(demo_hdht))
 
@@ -357,7 +347,7 @@ demo_hdht_W <- fixef(demo_hdht)[c(1, 2)] + c(fixef(demo_hdht)[3], 0)
 
 # Estimate errors, but use non-PA distribution since plot averaging mutes small and large heights
 # This drastically shrinks the variance of the true distribution of flower head heights
-# In turn, this could significantly mis-estimate spread rate
+# Underestimating capitulum height variance could mis-estimate dispersal and spread
 temp2 <- drop_na(data_ht)
 names(temp2)[6] <- c("DM_t1_PA")
 temp3 <- predict(demo_hdht, temp2) - temp2$Height
@@ -417,9 +407,9 @@ sd(rlnorm(1000000, disp_tv[1], disp_tv[2]))
 # Lognormal seems to be reasonable fit for terminal velocity data
 set.seed(283749842)
 temp1 <- rlnorm(length(disp_tv_vals), meanlog = disp_tv[1], sdlog = disp_tv[2])
-ks.test(disp_tv_vals, temp1)
-plot(density(disp_tv_vals), col = "green")
+plot(density(disp_tv_vals), col = "green", xlim = c(0, 1.5), ylim = c(0, 4))
 lines(density(temp1), col = "green4")
+ks.test(disp_tv_vals, temp1)
 
 # Fit Weibull distribution to wind speeds
 # Assume no seed release occurs for wind speeds of zero, so remove zero values
@@ -440,9 +430,9 @@ sd(rweibull(1000000, disp_ws[1], disp_ws[2]))
 # Fit is still reasonable, though, and many studies have used Weibull for wind speed distribution
 set.seed(283749842)
 temp2 <- rweibull(length(disp_ws_vals), shape = disp_ws[1], scale = disp_ws[2])
-ks.test(disp_ws_vals, temp2)
-plot(density(disp_ws_vals), col = "green")
+plot(density(disp_ws_vals), col = "green", xlim = c(-1, 15), ylim = c(0, 0.4))
 lines(density(temp2), col = "green4")
+ks.test(disp_ws_vals, temp2)
 
 # Remove unused variables
 remove(temp1, temp2)
