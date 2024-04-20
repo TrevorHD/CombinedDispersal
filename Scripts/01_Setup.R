@@ -388,7 +388,7 @@ remove(demo_hdht, temp1, temp2, temp3, temp4, temp5, temp6, temp7)
 
 
 
-##### Set up terminal velocity and wind speed distributions -----------------------------------------------
+##### Set up terminal velocity distribution and transformation function -----------------------------------
 
 # Fit lognormal distribution to terminal velocities
 # Terminal velocity is drop tube length (1.25 m) divided by drop time
@@ -410,90 +410,6 @@ temp1 <- rlnorm(length(disp_tv_vals), meanlog = disp_tv[1], sdlog = disp_tv[2])
 plot(density(disp_tv_vals), col = "green", xlim = c(0, 1.5), ylim = c(0, 4))
 lines(density(temp1), col = "green4")
 ks.test(disp_tv_vals, temp1)
-
-# Fit Weibull distribution to wind speeds
-# Assume no seed release occurs for wind speeds of zero, so remove zero values
-disp_ws_vals <- c(data_ws1$Wind1, data_ws2$Wind1)
-disp_ws_vals <- disp_ws_vals[disp_ws_vals > 0]
-disp_ws <- fitdistr(disp_ws_vals, "weibull")$estimate
-
-# Get mean and SD for parameterised Weibull distribution
-disp_ws[2]*gamma(1 + 1/disp_ws[1])
-sqrt((disp_ws[2]^2)*(gamma(1 + 2/disp_ws[1]) - gamma(1 + 1/disp_ws[1])^2))
-
-# Check that the mean/SD calculations above are accurate; simulated results are close
-set.seed(283749842)
-mean(rweibull(1000000, disp_ws[1], disp_ws[2]))
-sd(rweibull(1000000, disp_ws[1], disp_ws[2]))
-
-# Wind data is a bit messy and sample size is very high, so K-S is not significant
-# Fit is still reasonable, though, and many studies have used Weibull for wind speed distribution
-set.seed(283749842)
-temp2 <- rweibull(length(disp_ws_vals), shape = disp_ws[1], scale = disp_ws[2])
-plot(density(disp_ws_vals), col = "green", xlim = c(-1, 15), ylim = c(0, 0.4))
-lines(density(temp2), col = "green4")
-ks.test(disp_ws_vals, temp2)
-
-# Remove unused variables
-remove(temp1, temp2)
-
-
-
-
-
-##### Set up functions for distribution transformations ---------------------------------------------------
-
-# Function to transform raw variance and/or mean, then output corresponding shape and scale
-transform.wb <- function(shape, scale, fv, which.trans){
-  
-  # Internal functions to calculate mean and SD of Weibull distribution
-  meanW <- function(shape, scale){
-    return(scale*gamma(1 + 1/shape))}
-  sdW <- function(shape, scale){
-    return(sqrt((scale^2)*(gamma(1 + 2/shape) - gamma(1 + 1/shape)^2)))}
-  
-  # Must brute force a solution since there is no easy function for inverse gamma
-  
-  # Create meshpoints for combinations of shape and scale
-  mesh <- c(seq(1e-7, 9e-7, by = 1e-7),
-            seq(1e-6, 9e-6, by = 1e-6),
-            seq(1e-5, 9e-5, by = 1e-5),
-            seq(0.0001, 0.0009, by = 0.0001),
-            seq(0.001, 0.009, by = 0.001),
-            seq(0.01, 10, by = 0.005),
-            seq(10.01, 50, by = 0.01),
-            seq(50.1, 100, by = 0.1))
-  scaleMesh = rep(mesh, each = length(mesh))
-  shapeMesh = rep(mesh, times = length(mesh))
-  
-  # Let fv be the value that the mean and/or standard deviation is multiplied by
-  # Note: transformations may not be accurate when fv < 0.01 or fv > 4
-  
-  # Conditional statements for the variable(s) to be transformed
-  if(which.trans == "mean"){
-    fm <- fv
-    fs <- 1}
-  if(which.trans == "sd"){
-    fm <- 1
-    fs <- fv}
-  if(which.trans == "both"){
-    fm <- fv
-    fs <- fv}
-  
-  # Transform variables
-  newMean = meanW(shape = shape, scale = scale)*fm
-  newSD = sdW(shape = shape, scale = scale)*fs
-  
-  # Evaluate mean and SD for at meshpoints
-  # Then calculate difference between estimated and supplied mean and SD
-  diffs1 <- abs((mapply(meanW, shape = shapeMesh, scale = scaleMesh) - newMean)/newMean)
-  diffs2 <- abs((mapply(sdW, shape = shapeMesh, scale = scaleMesh) - newSD)/newSD)
-  
-  # Find argmin by equally weighting mean and SD differences from supplied
-  argmin <- which.min((diffs1 + diffs2)/2)
-  
-  # Return shape and scale at argmin
-  return(c(shapeMesh[argmin], scaleMesh[argmin]))}
 
 # Function to transform raw variance and/or mean, then output corresponding meanlog and sdlog
 transform.ln <- function(meanlog, sdlog, fv, which.trans){
@@ -532,40 +448,168 @@ transform.ln <- function(meanlog, sdlog, fv, which.trans){
   # Output new meanlog and sdlog
   return(c(newMeanlog, newSDlog))}
 
-# Check accuracy of Weibull transform function below; results won't be exact, but extremely close
-# Scale Weibull mean by 50%; mean scales by 50% and SD remains unchanged, as expected
-temp1 <- transform.wb(disp_ws[1], disp_ws[2], 1.5, "mean")
-disp_ws[2]*gamma(1 + 1/disp_ws[1])*1.5
-temp1[2]*gamma(1 + 1/temp1[1])
-sqrt((disp_ws[2]^2)*(gamma(1 + 2/disp_ws[1]) - gamma(1 + 1/disp_ws[1])^2))
-sqrt((temp1[2]^2)*(gamma(1 + 2/temp1[1]) - gamma(1 + 1/temp1[1])^2))
-
-# Check accuracy of Weibull transform function below; results won't be exact, but extremely close
-# Scale Weibull SD by 50%; mean remains unchanged and SD scales by 50%, as expected
-temp2 <- transform.wb(disp_ws[1], disp_ws[2], 1.5, "sd")
-disp_ws[2]*gamma(1 + 1/disp_ws[1])
-temp2[2]*gamma(1 + 1/temp2[1])
-sqrt((disp_ws[2]^2)*(gamma(1 + 2/disp_ws[1]) - gamma(1 + 1/disp_ws[1])^2))*1.5
-sqrt((temp2[2]^2)*(gamma(1 + 2/temp2[1]) - gamma(1 + 1/temp2[1])^2))
-
-# Check accuracy of lognormal transform function below; results should be exact
-# Scale lognormal mean by 50%; mean scales by 50% and SD remains unchanged, as expected
-temp3 <- transform.ln(disp_tv[1], disp_tv[2], 1.5, "mean")
+# Scale lognormal mean up by 50%; mean scales up by 50% and SD remains unchanged, as expected
+temp2 <- transform.ln(disp_tv[1], disp_tv[2], 1.5, "mean")
 exp(disp_tv[1] + 0.5*(disp_tv[2]^2))*1.5
+exp(temp2[1] + 0.5*(temp2[2]^2))
+sqrt(exp(2*disp_tv[1] + (disp_tv[2]^2))*(exp(disp_tv[2]^2) - 1))
+sqrt(exp(2*temp2[1] + (temp2[2]^2))*(exp(temp2[2]^2) - 1))
+
+# Scale lognormal mean down by 50%; mean scales down by 50% and SD remains unchanged, as expected
+temp3 <- transform.ln(disp_tv[1], disp_tv[2], 0.5, "mean")
+exp(disp_tv[1] + 0.5*(disp_tv[2]^2))*0.5
 exp(temp3[1] + 0.5*(temp3[2]^2))
 sqrt(exp(2*disp_tv[1] + (disp_tv[2]^2))*(exp(disp_tv[2]^2) - 1))
 sqrt(exp(2*temp3[1] + (temp3[2]^2))*(exp(temp3[2]^2) - 1))
 
-# Check accuracy of lognormal transform function below; results should be exact
-# Scale lognormal SD by 50%; mean remains unchanged and SD scales by 50%, as expected
+# Plot mean-scaled distributions against baseline for comparison
+set.seed(283749842)
+plot(density(rlnorm(1000000, disp_tv[1], disp_tv[2])), xlim = c(0, 2), ylim = c(0, 7))
+lines(density(rlnorm(1000000, temp2[1], temp2[2])), col = "green")
+lines(density(rlnorm(1000000, temp3[1], temp3[2])), col = "green4")
+
+# Scale lognormal SD up by 50%; mean remains unchanged and SD scales up by 50%, as expected
 temp4 <- transform.ln(disp_tv[1], disp_tv[2], 1.5, "sd")
 exp(disp_tv[1] + 0.5*(disp_tv[2]^2))
 exp(temp4[1] + 0.5*(temp4[2]^2))
 sqrt(exp(2*disp_tv[1] + (disp_tv[2]^2))*(exp(disp_tv[2]^2) - 1))*1.5
 sqrt(exp(2*temp4[1] + (temp4[2]^2))*(exp(temp4[2]^2) - 1))
 
+# Scale lognormal SD up by 50%; mean remains unchanged and SD scales up by 50%, as expected
+temp5 <- transform.ln(disp_tv[1], disp_tv[2], 0.5, "sd")
+exp(disp_tv[1] + 0.5*(disp_tv[2]^2))
+exp(temp5[1] + 0.5*(temp5[2]^2))
+sqrt(exp(2*disp_tv[1] + (disp_tv[2]^2))*(exp(disp_tv[2]^2) - 1))*0.5
+sqrt(exp(2*temp5[1] + (temp5[2]^2))*(exp(temp5[2]^2) - 1))
+
+# Plot SD-scaled distributions against baseline for comparison
+set.seed(283749842)
+plot(density(rlnorm(1000000, disp_tv[1], disp_tv[2])), xlim = c(0, 2), ylim = c(0, 7))
+lines(density(rlnorm(1000000, temp4[1], temp4[2])), col = "green")
+lines(density(rlnorm(1000000, temp5[1], temp5[2])), col = "green4")
+
 # Remove unused variables
-remove(temp1, temp2, temp3, temp4)
+remove(temp1, temp2, temp3, temp4, temp5)
+
+
+
+
+
+##### Set up wind speed distribution and transformation function ------------------------------------------
+
+# Fit Weibull distribution to wind speeds
+# Assume no seed release occurs for wind speeds of zero, so remove zero values
+disp_ws_vals <- c(data_ws1$Wind1, data_ws2$Wind1)
+disp_ws_vals <- disp_ws_vals[disp_ws_vals > 0]
+disp_ws <- fitdistr(disp_ws_vals, "weibull")$estimate
+
+# Get mean and SD for parameterised Weibull distribution
+disp_ws[2]*gamma(1 + 1/disp_ws[1])
+sqrt((disp_ws[2]^2)*(gamma(1 + 2/disp_ws[1]) - gamma(1 + 1/disp_ws[1])^2))
+
+# Check that the mean/SD calculations above are accurate; simulated results are close
+set.seed(749402744)
+mean(rweibull(1000000, disp_ws[1], disp_ws[2]))
+sd(rweibull(1000000, disp_ws[1], disp_ws[2]))
+
+# Wind data is a bit messy and sample size is very high, so K-S is not significant
+# Fit is still reasonable, though, and many studies have used Weibull for wind speed distribution
+set.seed(749402744)
+temp2 <- rweibull(length(disp_ws_vals), disp_ws[1], disp_ws[2])
+plot(density(disp_ws_vals), col = "green", xlim = c(-1, 15), ylim = c(0, 0.4))
+lines(density(temp2), col = "green4")
+ks.test(disp_ws_vals, temp2)
+
+# Function to transform raw variance and/or mean, then output corresponding shape and scale
+transform.wb <- function(shape, scale, fv, which.trans){
+  
+  # Internal functions to calculate mean and SD of Weibull distribution
+  meanW <- function(shape, scale){
+    return(scale*gamma(1 + 1/shape))}
+  sdW <- function(shape, scale){
+    return(sqrt((scale^2)*(gamma(1 + 2/shape) - gamma(1 + 1/shape)^2)))}
+  
+  # Unfortunately, inverse gamma function cannot be expressed using elementary functions
+  # Thus, it might be easier just to brute force a solution using a gridsearch 
+  
+  # Create meshpoints for combinations of shape and scale
+  mesh <- seq(0, 5, by = 0.002)
+  if(fv >= 1){mesh2 <- mesh[mesh >= scale*0.8]}
+  if(fv < 1){mesh2 <- mesh[mesh < scale*1.2]}
+  shapeMesh = rep(mesh, times = length(mesh2))
+  scaleMesh = rep(mesh2, each = length(mesh))
+  
+  # Let fv be the value that the mean and/or standard deviation is multiplied by
+  # Note: transformations may not be accurate when fv < 0.01 or fv > 4
+  
+  # Conditional statements for the variable(s) to be transformed
+  if(which.trans == "mean"){
+    fm <- fv
+    fs <- 1}
+  if(which.trans == "sd"){
+    fm <- 1
+    fs <- fv}
+  if(which.trans == "both"){
+    fm <- fv
+    fs <- fv}
+  
+  # Transform variables
+  newMean = meanW(shape = shape, scale = scale)*fm
+  newSD = sdW(shape = shape, scale = scale)*fs
+  
+  # Evaluate mean and SD for at meshpoints
+  # Then calculate difference between estimated and supplied mean and SD
+  diffs1 <- abs((mapply(meanW, shape = shapeMesh, scale = scaleMesh) - newMean)/newMean)
+  diffs2 <- abs((mapply(sdW, shape = shapeMesh, scale = scaleMesh) - newSD)/newSD)
+  
+  # Find argmin by equally weighting mean and SD differences from supplied
+  argmin <- which.min((diffs1 + diffs2)/2)
+  
+  # Return shape and scale at argmin
+  return(c(shapeMesh[argmin], scaleMesh[argmin]))}
+
+# Scale Weibull mean up by 50%; mean scales up by 50% and SD remains unchanged, as expected
+temp2 <- transform.wb(disp_ws[1], disp_ws[2], 1.5, "mean")
+disp_ws[2]*gamma(1 + 1/disp_ws[1])*1.5
+temp2[2]*gamma(1 + 1/temp2[1])
+sqrt((disp_ws[2]^2)*(gamma(1 + 2/disp_ws[1]) - gamma(1 + 1/disp_ws[1])^2))
+sqrt((temp2[2]^2)*(gamma(1 + 2/temp2[1]) - gamma(1 + 1/temp2[1])^2))
+
+# Scale Weibull mean down by 50%; mean scales down by 50% and SD remains unchanged, as expected
+temp3 <- transform.wb(disp_ws[1], disp_ws[2], 0.5, "mean")
+disp_ws[2]*gamma(1 + 1/disp_ws[1])*0.5
+temp3[2]*gamma(1 + 1/temp3[1])
+sqrt((disp_ws[2]^2)*(gamma(1 + 2/disp_ws[1]) - gamma(1 + 1/disp_ws[1])^2))
+sqrt((temp3[2]^2)*(gamma(1 + 2/temp3[1]) - gamma(1 + 1/temp3[1])^2))
+
+# Plot mean-scaled distributions against baseline for comparison
+set.seed(749402744)
+plot(density(rweibull(1000000, disp_ws[1], disp_ws[2])), xlim = c(0, 15), ylim = c(0, 1))
+lines(density(rweibull(1000000, temp2[1], temp2[2])), col = "green")
+lines(density(rweibull(1000000, temp3[1], temp3[2])), col = "green4")
+
+# Scale Weibull SD up by 50%; mean remains unchanged and SD scales up by 50%, as expected
+temp4 <- transform.wb(disp_ws[1], disp_ws[2], 1.5, "sd")
+disp_ws[2]*gamma(1 + 1/disp_ws[1])
+temp4[2]*gamma(1 + 1/temp4[1])
+sqrt((disp_ws[2]^2)*(gamma(1 + 2/disp_ws[1]) - gamma(1 + 1/disp_ws[1])^2))*1.5
+sqrt((temp4[2]^2)*(gamma(1 + 2/temp4[1]) - gamma(1 + 1/temp4[1])^2))
+
+# Scale Weibull SD up by 50%; mean remains unchanged and SD scales up by 50%, as expected
+temp5 <- transform.wb(disp_ws[1], disp_ws[2], 0.5, "sd")
+disp_ws[2]*gamma(1 + 1/disp_ws[1])
+temp5[2]*gamma(1 + 1/temp5[1])
+sqrt((disp_ws[2]^2)*(gamma(1 + 2/disp_ws[1]) - gamma(1 + 1/disp_ws[1])^2))*0.5
+sqrt((temp5[2]^2)*(gamma(1 + 2/temp5[1]) - gamma(1 + 1/temp5[1])^2))
+
+# Plot SD-scaled distributions against baseline for comparison
+set.seed(749402744)
+plot(density(rweibull(1000000, disp_ws[1], disp_ws[2])), xlim = c(0, 15), ylim = c(0, 1))
+lines(density(rweibull(1000000, temp4[1], temp4[2])), col = "green")
+lines(density(rweibull(1000000, temp5[1], temp5[2])), col = "green4")
+
+# Remove unused variables
+remove(temp1, temp2, temp3, temp4, temp5)
 
 
 
