@@ -515,10 +515,10 @@ sd(rweibull(1000000, disp_ws[1], disp_ws[2]))
 # Wind data is a bit messy and sample size is very high, so K-S is not significant
 # Fit is still reasonable, though, and many studies have used Weibull for wind speed distribution
 set.seed(749402744)
-temp2 <- rweibull(length(disp_ws_vals), disp_ws[1], disp_ws[2])
+temp1 <- rweibull(length(disp_ws_vals), disp_ws[1], disp_ws[2])
 plot(density(disp_ws_vals), col = "green", xlim = c(-1, 15), ylim = c(0, 0.4))
-lines(density(temp2), col = "green4")
-ks.test(disp_ws_vals, temp2)
+lines(density(temp1), col = "green4")
+ks.test(disp_ws_vals, temp1)
 
 # Function to transform raw variance and/or mean, then output corresponding shape and scale
 transform.wb <- function(shape, scale, fv, which.trans){
