@@ -11,13 +11,13 @@ adsp.param <- function(aNum, aVal){
   aParam[2] <- demo_rose_err        # Size at establishment SD
   
   # Parameters for rosette survival, and growth in spring
-  aParam[3] <- demo_surv            # Probability of survival
+  aParam[3] <- demo_surv            # Prob. of survival
   aParam[4] <- demo_grow_NW[1]      # Size after growth intercept
   aParam[5] <- demo_grow_NW[2]      # Size after growth size-slope
   aParam[6] <- demo_grow_err        # Size after growth SD
   
   # Parameters for flowering probability, and flower head count
-  aParam[7] <- demo_flow            # Probability of flowering
+  aParam[7] <- demo_flow            # Prob. of flowering
   aParam[8] <- demo_head_NW[1]      # Head count intercept
   aParam[9] <- demo_head_NW[2]      # Head count size-slope
   aParam[10] <- demo_head_err       # Head count SD
@@ -155,8 +155,8 @@ wdsp.param <- function(wNum, wVal){
   wParam <- c()
   
   # Set parameters for wind speed, seed terminal velocity, and vegetation height
-  wParam[1] <- 0.056                # Probability of seed release from capitulum
-  wParam[2] <- 0.150                # Vegetation height (m)
+  wParam[1] <- 0.056                # Prob. of seed release from capitulum
+  wParam[2] <- 0.150                # Surrounding vegetation height (m)
   wParam[3] <- disp_tv[1]           # Log mean terminal velocity, lognormal dist.
   wParam[4] <- disp_tv[2]           # Log SD terminal velocity, lognormal dist.
   wParam[5] <- disp_ws[1]           # Shape wind speed, Weibull dist.
@@ -189,7 +189,7 @@ wdsp.wald <- function(n, H, wVec){
   wParam <- wVec
   
   # Get counts for seeds that are and aren't released
-  nr <- round(n*wParam[1], 0)
+  nr <- sum(sample(c(1, 0), size = n, prob = c(wParam[1], 1 - wParam[1]), replace = TRUE))
   nf <- n - nr
   
   # Initialise physical constants

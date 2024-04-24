@@ -1,364 +1,163 @@
 ##### Base runs -------------------------------------------------------------------------------------------
 
-# Ensure parameters below are set before running any of options 1-10
-nestOn <- TRUE    # Should ant dispersal be included?
-trim <- TRUE      # Should core area of wave be trimmed?
-plotOn <- FALSE   # Should the wave be plotted?
-nYear <- 1000     # Number of years to simulate
-trimAmt <- 1000   # Distance (m) behind wavefront to trim
-tDens <- 10       # Max thistle density per metre
-range <- 25       # Max detection range (m) from ant nests
-nDens <- 0.2      # Ant nest density (nests/m)
+# Load simulation settings before running any wavespeed code
+sets_plot <- FALSE     # (De)Activate wave plotting
+sets_nest <- TRUE      # (De)Activate ant nests
+sets_trim <- TRUE      # (De)Activate core area trimming
+sets_years <- 1000     # Number of years to simulate
+sets_trimD <- 1000     # Distance (m) behind wavefront to trim
 
-# If running a warmed scenario, run the code below to update demographic/dispersal parameters
-# Asterisks indicate parameters that are different under warming conditions
-wdsp.param <- function(wNum, wVal){
-  wParam <- c()
-  wParam[1] <- 0.15                 # Vegetation height (m)
-  wParam[2] <- disp_ws[1]           # Shape wind speed, Weibull dist.
-  wParam[3] <- disp_ws[2]           # Scale wind speed, Weibull dist.
-  wParam[4] <- disp_tv[1]           # Log mean terminal velocity, lognormal dist.
-  wParam[5] <- disp_tv[2]           # Log SD terminal velocity, lognormal dist.
-  wParam[6] <- 0.129                # Probability of seed release from capitulum***
-  if(wNum == 1){
-    wParam[1] <- wParam[1]*wVal}
-  if(wNum == 2){
-    wParam[c(2, 3)] <- transform.wb(wParam[2], wParam[3], wVal, "mean")}
-  if(wNum == 3){
-    wParam[c(2, 3)] <- transform.wb(wParam[2], wParam[3], wVal, "sd")}
-  if(wNum == 4){
-    wParam[c(4, 5)] <- transform.ln(wParam[wNum], wParam[wNum + 1], wVal, "mean")}
-  if(wNum == 5){
-    wParam[c(4, 5)] <- transform.ln(wParam[wNum - 1], wParam[wNum], wVal, "sd")}
-  if(wNum == 8){
-    wParam[6] <- wParam[6]*wVal}
-  return(wParam)}
-adsp.param <- function(aNum, aVal){
-  aParam <- c()
-  aParam[1] <- 476                  # Seeds per flower head
-  aParam[2] <- 0.850                # Prob. of surviving pre-dispersal seed predation (florivory)
-  aParam[3] <- 0.984                # Prob. of seed removal by ants***
-  aParam[4] <- 0.100                # Prob. of surviving post-dispersal seed predation by ants
-  aParam[5] <- 0.302                # Prob. of establishment from seed***
-  aParam[6] <- 0.233                # Prob. of seed entering seed bank
-  aParam[7] <- 0.302                # Prob. of seed establishing from seed bank***
-  aParam[8] <- 0.260                # Prob. of seed survival in seed bank
-  aParam[9] <- demo_rose            # Rosette size t0 intercept
-  aParam[10] <- demo_rose_err       # Rosette size t0 model SD
-  aParam[11] <- demo_surv           # Prob. survival
-  aParam[12] <- demo_grow_W[1]      # Rosette size t1 intercept***
-  aParam[13] <- demo_grow_W[2]      # Rosette size t1 size-slope
-  aParam[14] <- demo_grow_err       # Mean growth model SD
-  aParam[15] <- demo_flow           # Prob. flowering
-  aParam[16] <- demo_head_W[1]      # Num. heads intercept***
-  aParam[17] <- demo_head_W[2]      # Num. heads size-slope
-  aParam[18] <- demo_head_err       # Num. heads model SD
-  aParam[19] <- demo_hdht_W[1]      # Head height intercept***
-  aParam[20] <- demo_hdht_W[2]      # Head height diameter-slope
-  aParam[21] <- demo_hdht_err       # Head height model SD
-  aVec <- rep(1, length(aParam))
-  aVec[aNum] <- aVal
-  aParam <- aParam*aVec
-  return(aParam)}
+# Set demography/dispersal parameters not covered in ADSP or WDSP
+misc_tDens <- 10       # Max thistle density per metre
+misc_nDens <- 0.2      # Ant nest density (nests/m)
+misc_nRange <- 25      # Max detection range (m) from ant nests
 
-# [1] Seed predation 90%, ant dispersal enabled [unwarmed]
-set.seed(83568)
+# Set up ADSP parameter transformation for runs [unwarmed, no ant dispersal/predation]
+sens_w_adsp_num1 <- c(20, 21)
+sens_w_adsp_val1 <- c(0, 10)
+
+# Set up ADSP parameter transformation for runs [warmed, no ant dispersal/predation]
+sens_w_adsp_num2 <- c(4, 8, 11, 16, 18, 20, 21)
+sens_w_adsp_val2 <- c(demo_grow_W[1]/demo_grow_NW[1], demo_head_W[1]/demo_head_NW[1],
+                      demo_hdht_W[1]/demo_hdht_NW[1], 0.302/0.233, 0.302/0.233, 0, 10)
+
+# Set up ADSP parameter transformation for runs [warmed, ant dispersal/predation]
+sens_w_adsp_num3 <- c(4, 8, 11, 16, 18, 20)
+sens_w_adsp_val3 <- c(demo_grow_W[1]/demo_grow_NW[1], demo_head_W[1]/demo_head_NW[1],
+                      demo_hdht_W[1]/demo_hdht_NW[1], 0.302/0.233, 0.302/0.233, 0.984/0.948)
+
+# Set up WDSP parameter transformation runs [warmed]
+sens_w_wdsp_num1 <- c(1)
+sens_w_wdsp_val1 <- c(0.129/0.056)
+
+# [1] Base run with no ant dispersal or predation [unwarmed]
+set.seed()
+sets_nest <- FALSE
+aVec <- adsp.param(aNum = sens_w_adsp_num1, aVal = sens_w_adsp_val1)
+wVec <- wdsp.param(wNum = 1, wVal = 1)
+write.csv(wv_front, "Data/wv_base_1.csv")
+
+# [2] Base run with no ant dispersal or predation [warmed]
+set.seed()
+sets_nest <- FALSE
+aVec <- adsp.param(aNum = sens_w_adsp_num2, aVal = sens_w_adsp_val2)
+wVec <- wdsp.param(wNum = sens_w_wdsp_num1, wVal = sens_w_wdsp_val1)
+write.csv(wv_front, "Data/wv_base_2.csv")
+
+# [3] Base run with ant dispersal and predation [unwarmed]
+set.seed()
 aVec <- adsp.param(aNum = 1, aVal = 1)
 wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_a.csv")
-write.csv(wv_dens, "Data/wv_dens_a.csv")
+write.csv(wv_front, "Data/wv_base_3.csv")
 
-# [2] Seed predation 90%, ant dispersal enabled [warmed]
-set.seed(36583)
+# [4] Base run with ant dispersal and predation [warmed]
+set.seed()
+aVec <- adsp.param(aNum = sens_w_adsp_num3, aVal = sens_w_adsp_val3)
+wVec <- wdsp.param(wNum = sens_w_wdsp_num1, wVal = sens_w_wdsp_val1)
+write.csv(wv_front, "Data/wv_base_4.csv")
+
+
+
+
+
+##### Parameter exploration runs --------------------------------------------------------------------------
+
+# Load simulation settings before running any wavespeed code
+sets_plot <- FALSE     # (De)Activate wave plotting
+sets_nest <- TRUE      # (De)Activate ant nests
+sets_trim <- TRUE      # (De)Activate core area trimming
+sets_years <- 100      # Number of years to simulate
+sets_trimD <- 1000     # Distance (m) behind wavefront to trim
+
+# Set demography/dispersal parameters not covered in ADSP or WDSP
+misc_tDens <- 10       # Max thistle density per metre
+misc_nDens <- 0.2      # Ant nest density (nests/m)
+misc_nRange <- 25      # Max detection range (m) from ant nests
+
+# Set multipliers and baseline parameters
+multPr <- seq(0.0, 1.0, 0.1)
+multRe <- seq(0.5, 1.5, 0.1)
+
+# [1] Head height intercept
+wVec <- wdsp.param(wNum = 1, wVal = 1)
+simSeeds <- c()
+aVecList <- lapply(X = multRe, FUN = adsp.param, aNum = 11)
+write.csv(wv_span, "Data/wv_span_2.csv")
+
+# [2] Head height size-slope
+wVec <- wdsp.param(wNum = 1, wVal = 1)
+simSeeds <- c()
+aVecList <- lapply(X = multRe, FUN = adsp.param, aNum = 12)
+write.csv(wv_span, "Data/wv_span_3.csv")
+
+# [3] Head height size-slope
+wVec <- wdsp.param(wNum = 1, wVal = 1)
+simSeeds <- c()
+aVecList <- lapply(X = multRe, FUN = adsp.param, aNum = 13)
+write.csv(wv_span, "Data/wv_span_4.csv")
+
+# [4] Prob. of seed removal by ants
+wVec <- wdsp.param(wNum = 1, wVal = 1)
+simSeeds <- c()
+aVecList <- lapply(X = multPr, FUN = adsp.param, aNum = 20)
+write.csv(wv_span, "Data/wv_span_1.csv")
+
+# [5] Prob. of surviving predation if removed by ants
+wVec <- wdsp.param(wNum = 1, wVal = 1)
+simSeeds <- c()
+aVecList <- lapply(X = multPr, FUN = adsp.param, aNum = 21)
+write.csv(wv_span, "Data/wv_span_2.csv")
+
+# [6] Prob. of seed release from capitulum
+aVec <- adsp.param(aNum = 1, aVal = 1)
+simSeeds <- c()
+wVecList <- lapply(X = multPr, FUN = wdsp.param, wNum = 1)
+write.csv(wv_span, "Data/wv_span_2.csv")
+
+# [7] Surrounding vegetation height
+aVec <- adsp.param(aNum = 1, aVal = 1)
+simSeeds <- c()
+wVecList <- lapply(X = multRe, FUN = wdsp.param, wNum = 2)
+write.csv(wv_span, "Data/wv_span_2.csv")
+
+# [8] Mean seed terminal velocity
+aVec <- adsp.param(aNum = 1, aVal = 1)
+simSeeds <- c()
+wVecList <- lapply(X = multRe, FUN = wdsp.param, wNum = 3)
+write.csv(wv_span, "Data/wv_span_2.csv")
+
+# [9] SD seed terminal velocity
+aVec <- adsp.param(aNum = 1, aVal = 1)
+simSeeds <- c()
+wVecList <- lapply(X = multRe, FUN = wdsp.param, wNum = 4)
+write.csv(wv_span, "Data/wv_span_2.csv")
+
+# [10] Mean wind speed
+aVec <- adsp.param(aNum = 1, aVal = 1)
+simSeeds <- c()
+wVecList <- lapply(X = multRe, FUN = wdsp.param, wNum = 5)
+write.csv(wv_span, "Data/wv_span_2.csv")
+
+# [11] SD wind speed
+aVec <- adsp.param(aNum = 1, aVal = 1)
+simSeeds <- c()
+wVecList <- lapply(X = multRe, FUN = wdsp.param, wNum = 6)
+write.csv(wv_span, "Data/wv_span_2.csv")
+
+# [12] Max thistle density
 aVec <- adsp.param(aNum = 1, aVal = 1)
 wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_b.csv")
-write.csv(wv_dens, "Data/wv_dens_b.csv")
+simSeeds <- c()
+aVecList <- 10*multRe
 
-# [3] Seed predation 60%, ant dispersal enabled [unwarmed]
-set.seed(34755)
-aVec <- adsp.param(aNum = 4, aVal = 4)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_c.csv")
-write.csv(wv_dens, "Data/wv_dens_c.csv")
-
-# [4] Seed predation 60%, ant dispersal enabled [warmed]
-set.seed(24745)
-aVec <- adsp.param(aNum = 4, aVal = 4)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_d.csv")
-write.csv(wv_dens, "Data/wv_dens_d.csv")
-
-# [5] Seed predation 30%, ant dispersal enabled [unwarmed]
-set.seed(58555)
-aVec <- adsp.param(aNum = 4, aVal = 7)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_e.csv")
-write.csv(wv_dens, "Data/wv_dens_e.csv")
-
-# [6] Seed predation 30%, ant dispersal enabled [warmed]
-set.seed(12432)
-aVec <- adsp.param(aNum = 4, aVal = 7)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_f.csv")
-write.csv(wv_dens, "Data/wv_dens_f.csv")
-
-# [7] Seed predation 0%, ant dispersal enabled [unwarmed]
-set.seed(73456)
-aVec <- adsp.param(aNum = 4, aVal = 10)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_g.csv")
-write.csv(wv_dens, "Data/wv_dens_g.csv")
-
-# [8] Seed predation 0%, ant dispersal enabled [warmed]
-set.seed(82345)
-aVec <- adsp.param(aNum = 4, aVal = 10)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_h.csv")
-write.csv(wv_dens, "Data/wv_dens_h.csv")
-
-# [9] Seed predation disabled, ant dispersal disabled [unwarmed]
-set.seed(23633)
-aVec <- adsp.param(aNum = 4, aVal = 10)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-nestOn <- FALSE
-write.csv(wv_front, "Data/wv_front_i.csv")
-write.csv(wv_dens, "Data/wv_dens_i.csv")
-
-# [10] Seed predation disabled, ant dispersal disabled [warmed]
-set.seed(29863)
-aVec <- adsp.param(aNum = 4, aVal = 10)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-nestOn <- FALSE
-write.csv(wv_front, "Data/wv_front_j.csv")
-write.csv(wv_dens, "Data/wv_dens_j.csv")
-
-
-
-
-
-##### Sensitivity analyses --------------------------------------------------------------------------------
-
-# Ensure parameters below are set before running any of options 1-30
-nestOn <- TRUE    # Should ant dispersal be included?
-trim <- TRUE      # Should core area of wave be trimmed?
-plotOn <- FALSE   # Should the wave be plotted?
-nYear <- 1000     # Number of years to simulate
-trimAmt <- 1000   # Distance (m) behind wavefront to trim
-tDens <- 10       # Max thistle density per metre
-range <- 25       # Max detection range (m) from ant nests
-nDens <- 0.2      # Ant nest density (nests/m)
-
-# [1] Seeds per flower head
-set.seed(63925)
-aVec <- adsp.param(aNum = 1, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_1.csv")
-write.csv(wv_dens, "Data/wv_dens_1.csv")
-
-# [2] Prob. of surviving pre-dispersal seed predation (florivory) - rerun, may have accidentally used warmed
-set.seed(12263)
-aVec <- adsp.param(aNum = 2, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_2.csv")
-write.csv(wv_dens, "Data/wv_dens_2.csv")
-
-# [3] Prob. of seed removal by ants
-set.seed(98374)
-aVec <- adsp.param(aNum = 3, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_3.csv")
-write.csv(wv_dens, "Data/wv_dens_3.csv")
-
-# [4] Prob. of surviving post-dispersal seed predation by ants
-set.seed(29342)
-aVec <- adsp.param(aNum = 4, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_4.csv")
-write.csv(wv_dens, "Data/wv_dens_4.csv")
-
-# [5] Prob. of establishment from seed
-set.seed(36543)
-aVec <- adsp.param(aNum = 5, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_5.csv")
-write.csv(wv_dens, "Data/wv_dens_5.csv")
-
-# [6] Prob. of seed entering seed bank
-set.seed(14563)
-aVec <- adsp.param(aNum = 6, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_6.csv")
-write.csv(wv_dens, "Data/wv_dens_6.csv")
-
-# [7] Prob. of seed establishing from seed bank
-set.seed(77253)
-aVec <- adsp.param(aNum = 7, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_7.csv")
-write.csv(wv_dens, "Data/wv_dens_7.csv")
-
-# [8] Prob. of seed survival in seed bank
-set.seed(25657)
-aVec <- adsp.param(aNum = 8, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_8.csv")
-write.csv(wv_dens, "Data/wv_dens_8.csv")
-
-# [9] Rosette size t0 intercept
-set.seed(87324)
-aVec <- adsp.param(aNum = 9, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_9.csv")
-write.csv(wv_dens, "Data/wv_dens_9.csv")
-
-# [10] Rosette size t0 model SD
-set.seed(55695)
-aVec <- adsp.param(aNum = 10, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_10.csv")
-write.csv(wv_dens, "Data/wv_dens_10.csv")
-
-# [11] Prob. survival
-set.seed(63453)
-aVec <- adsp.param(aNum = 11, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_11.csv")
-write.csv(wv_dens, "Data/wv_dens_11.csv")
-
-# [12] Rosette size t1 intercept
-set.seed(45675)
-aVec <- adsp.param(aNum = 12, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_12.csv")
-write.csv(wv_dens, "Data/wv_dens_12.csv")
-
-# [13] Rosette size t1 size-slope
-set.seed(34675)
-aVec <- adsp.param(aNum = 13, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_13.csv")
-write.csv(wv_dens, "Data/wv_dens_13.csv")
-
-# [14] Mean growth model SD
-set.seed(90344)
-aVec <- adsp.param(aNum = 14, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_14.csv")
-write.csv(wv_dens, "Data/wv_dens_14.csv")
-
-# [15] Prob. flowering
-set.seed(47333)
-aVec <- adsp.param(aNum = 15, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_15.csv")
-write.csv(wv_dens, "Data/wv_dens_15.csv")
-
-# [16] Num. heads intercept
-set.seed(69453)
-aVec <- adsp.param(aNum = 16, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_16.csv")
-write.csv(wv_dens, "Data/wv_dens_16.csv")
-
-# [17] Num. heads size-slope
-set.seed(55484)
-aVec <- adsp.param(aNum = 17, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_17.csv")
-write.csv(wv_dens, "Data/wv_dens_17.csv")
-
-# [18] Num. heads model SD
-set.seed(73454)
-aVec <- adsp.param(aNum = 18, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_18.csv")
-write.csv(wv_dens, "Data/wv_dens_18.csv")
-
-# [19] Head height intercept
-set.seed(25955)
-aVec <- adsp.param(aNum = 19, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_19.csv")
-write.csv(wv_dens, "Data/wv_dens_19.csv")
-
-# [20] Head height diameter-slope
-set.seed(14686)
-aVec <- adsp.param(aNum = 20, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_20.csv")
-write.csv(wv_dens, "Data/wv_dens_20.csv")
-
-# [21] Head height model SD
-set.seed(82450)
-aVec <- adsp.param(aNum = 21, aVal = 0.8)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-write.csv(wv_front, "Data/wv_front_21.csv")
-write.csv(wv_dens, "Data/wv_dens_21.csv")
-
-# [22] Vegetation height (m)
-set.seed(14578)
-aVec <- adsp.param(aNum = 1, aVal = 1)
-wVec <- wdsp.param(wNum = 1, wVal = 0.8)
-write.csv(wv_front, "Data/wv_front_22.csv")
-write.csv(wv_dens, "Data/wv_dens_22.csv")
-
-# [23] Mean wind speed, Weibull dist.
-set.seed(51487)
-aVec <- adsp.param(aNum = 1, aVal = 1)
-wVec <- wdsp.param(wNum = 2, wVal = 0.8)
-write.csv(wv_front, "Data/wv_front_23.csv")
-write.csv(wv_dens, "Data/wv_dens_23.csv")
-
-# [24] SD wind speed, Weibull dist.
-set.seed(93106)
-aVec <- adsp.param(aNum = 1, aVal = 1)
-wVec <- wdsp.param(wNum = 3, wVal = 0.8)
-write.csv(wv_front, "Data/wv_front_24.csv")
-write.csv(wv_dens, "Data/wv_dens_24.csv")
-
-# [25] Mean terminal velocity, lognormal dist.
-set.seed(31903)
-aVec <- adsp.param(aNum = 1, aVal = 1)
-wVec <- wdsp.param(wNum = 4, wVal = 0.8)
-write.csv(wv_front, "Data/wv_front_25.csv")
-write.csv(wv_dens, "Data/wv_dens_25.csv")
-
-# [26] SD terminal velocity, lognormal dist.
-set.seed(72074)
-aVec <- adsp.param(aNum = 1, aVal = 1)
-wVec <- wdsp.param(wNum = 5, wVal = 0.8)
-write.csv(wv_front, "Data/wv_front_26.csv")
-write.csv(wv_dens, "Data/wv_dens_26.csv")
-
-# [27] Probability of seed release from capitulum
-set.seed(49921)
-aVec <- adsp.param(aNum = 1, aVal = 1)
-wVec <- wdsp.param(wNum = 6, wVal = 0.8)
-write.csv(wv_front, "Data/wv_front_27.csv")
-write.csv(wv_dens, "Data/wv_dens_27.csv")
-
-# [28] Max thistle density per metre
-set.seed(52740)
+# [13] Ant nest density 
 aVec <- adsp.param(aNum = 1, aVal = 1)
 wVec <- wdsp.param(wNum = 1, wVal = 1)
-tDens <- 10*0.8
-write.csv(wv_front, "Data/wv_front_28.csv")
-write.csv(wv_dens, "Data/wv_dens_28.csv")
+simSeeds <- c()
+WVecList <- 0.2*multRe
 
-# [29] Max detection range from ant nests
-set.seed(45855)
+# [14] Max detection range from ant nests
 aVec <- adsp.param(aNum = 1, aVal = 1)
 wVec <- wdsp.param(wNum = 1, wVal = 1)
-range <- 25*0.8
-write.csv(wv_front, "Data/wv_front_29.csv")
-write.csv(wv_dens, "Data/wv_dens_29.csv")
-
-# [30] Ant nest density
-set.seed(12568)
-aVec <- adsp.param(aNum = 1, aVal = 1)
-wVec <- wdsp.param(wNum = 1, wVal = 1)
-nDens <- 0.2*0.8
-write.csv(wv_front, "Data/wv_front_30.csv")
-write.csv(wv_dens, "Data/wv_dens_30.csv")
-
+simSeeds <- c()
+WVecList <- 25*multRe
