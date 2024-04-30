@@ -1,3 +1,5 @@
+##### Run population spread model -------------------------------------------------------------------------
+
 # Start system timer
 wv_time <- Sys.time()
 
@@ -44,8 +46,9 @@ for(i in 1:(sets_years + 1)){
   if(nrow(plants) > 0){
     plants$stage <- adsp.demo("flow", aVec, n = nrow(plants))}
   
-  # Estimate number of flower heads, then get the number of viable seeds and their release heights
-  # Viable means surviving pre-/post-dispersal predation, and establishing or entering seed bank
+  # Estimate number of flower heads, then get the number of seeds and their release heights
+  # Keep only seeds that survive pre-/post-dispersal predation, and establish or entering seed bank
+  # This greatly reduces computational load when simulating dispersal
   if(sum(plants$stage == 1) > 0){
     temp1 <- plants[plants$stage == 1, ]
     nflow <- adsp.demo("head", aVec, rsize = temp1$rsize)
@@ -88,7 +91,7 @@ for(i in 1:(sets_years + 1)){
       seedsSB <- seedsSB[vec == 0, ]
       seedsEst <- na.omit(rbind(seedsEst, temp5))}}
   
-  # All remaining seeds not experiencing post-predation death enter seed bank
+  # Simulate entry into seed bank for all remaining seeds not experiencing post-predation death
   # Then reset all seeds already assigned to establishment or seed bank
   if(nrow(seedsNew) > 0){
     seedsNew$germ <- rep(0, nrow(seedsNew))
@@ -123,7 +126,7 @@ for(i in 1:(sets_years + 1)){
       data.frame() -> plants
     plants <- plants[, !names(plants) == c("bin")]}
   
-  # If no plants remain (unlikely), reset at origin so that simulation does not fail
+  # Reset at origin if no plants remain (unlikely) so that simulation does not fail
   if(nrow(plants) < 1){
     plants <- data.frame(d = 0.01, stage = 0, rsize = adsp.demo("size", aVec, n = 1))}
   

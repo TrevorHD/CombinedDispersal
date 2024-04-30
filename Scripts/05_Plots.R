@@ -1,7 +1,7 @@
-##### [F2] Plot snapshots of wave movement ----------------------------------------------------------------
+##### [FS1] Plot snapshots of wave movement ----------------------------------------------------------------
 
 # Prepare graphics device
-tiff(filename = "Figures/Figure 2.tif", width = 2000, height = 3000, units = "px",
+tiff(filename = "Figures/Figure S1.tif", width = 2000, height = 3000, units = "px",
      res = 800, compression = "lzw")
 
 # Create blank page
@@ -48,7 +48,129 @@ dev.off()
 
 
 
-##### [F3] Create function to plot parameter elasticity ---------------------------------------------------
+##### [FS2] Plot wavespeeds over a span of parameter values ------------------------------------------------
+
+# Set placeholder data
+test1 <- c(1:11)
+
+# Prepare graphics device
+tiff(filename = "Figures/Figure S2.tif", width = 3540, height = 2140, units = "px",
+     res = 800, compression = "lzw")
+
+# Create blank page
+grid.newpage()
+plot.new()
+
+# Set grid layout and activate it
+gly <- grid.layout(2140, 3540)
+pushViewport(viewport(layout = gly))
+
+# Plot wavespeed when scaling prob. of seed removal by ants
+pushViewport(vp = viewport(layout.pos.row = 40:740, layout.pos.col = 1:700))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multPr, test1, left = TRUE, bottom = FALSE, type = "prob")
+popViewport()
+
+# Plot wavespeed when scaling prob. of surviving predation if removed by ants
+pushViewport(vp = viewport(layout.pos.row = 741:1440, layout.pos.col = 1:700))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multPr, test1, left = TRUE, bottom = FALSE, type = "prob")
+popViewport()
+
+# Plot wavespeed when scaling prob. of seed release from capitulum
+pushViewport(vp = viewport(layout.pos.row = 1441:2140, layout.pos.col = 1:700))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multPr, test1, left = TRUE, bottom = TRUE, type = "prob")
+popViewport()
+
+# Plot wavespeed when scaling head height intercept
+pushViewport(vp = viewport(layout.pos.row = 40:740, layout.pos.col = 701:1400))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = FALSE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling head height size-slope
+pushViewport(vp = viewport(layout.pos.row = 741:1440, layout.pos.col = 701:1400))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = FALSE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling head height SD
+pushViewport(vp = viewport(layout.pos.row = 1441:2140, layout.pos.col = 701:1400))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = TRUE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling surrounding vegetation height
+pushViewport(vp = viewport(layout.pos.row = 40:740, layout.pos.col = 1401:2100))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = FALSE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling mean seed terminal velocity
+pushViewport(vp = viewport(layout.pos.row = 741:1440, layout.pos.col = 1401:2100))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = FALSE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling SD seed terminal velocity
+pushViewport(vp = viewport(layout.pos.row = 1441:2140, layout.pos.col = 1401:2100))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = TRUE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling mean wind speed
+pushViewport(vp = viewport(layout.pos.row = 40:740, layout.pos.col = 2101:2800))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = FALSE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling SD wind speed
+pushViewport(vp = viewport(layout.pos.row = 741:1440, layout.pos.col = 2101:2800))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = FALSE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling max thistle density
+pushViewport(vp = viewport(layout.pos.row = 1441:2140, layout.pos.col = 2101:2800))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = TRUE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling ant nest density 
+pushViewport(vp = viewport(layout.pos.row = 40:740, layout.pos.col = 2801:3500))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = FALSE, type = "real")
+popViewport()
+
+# Plot wavespeed when scaling max detection range from ant nests
+pushViewport(vp = viewport(layout.pos.row = 741:1440, layout.pos.col = 2801:3500))
+par(fig = gridFIG())
+par(new = TRUE)
+plot.span(multRe, test1, left = FALSE, bottom = TRUE, type = "real")
+popViewport()
+
+# Deactivate grid layout; finalise graphics save
+dev.off()
+
+
+
+
+
+##### [FS3] Create function to plot parameter elasticity ---------------------------------------------------
 
 # Create placeholder data with elasticity for each scalable parameter
 temp <- data.frame(var = c("Mean initial rosette size", "SD initial rosette size", "Prob. rosette survival",
@@ -67,7 +189,7 @@ temp <- data.frame(var = c("Mean initial rosette size", "SD initial rosette size
                    vals = seq(-1, 1, length.out = 30))
 
 # Prepare graphics device
-tiff(filename = "Figures/Figure 3.tif", width = 2000, height = 2000, units = "px",
+tiff(filename = "Figures/Figure S3.tif", width = 2000, height = 2000, units = "px",
      res = 800, compression = "lzw")
 
 # Create blank page
@@ -96,9 +218,9 @@ dev.off()
 
 
 
-##### [FS1, FS2] Plot moving wave over time ---------------------------------------------------------------
+##### [FS4, FS5] Plot moving wave over time ---------------------------------------------------------------
 
 # Generate GIFs of population spread (will be included in repo, but not publication)
-save_gif(generatePlots("hist"), "Figures/Figure S1.gif", delay = 0.2, width = 1280, height = 720, res = 144)
-save_gif(generatePlots("density"), "Figures/Figure S2.gif", delay = 0.2, width = 1280, height = 720, res = 144)
+save_gif(plot.wave("hist"), "Figures/Figure S4.gif", delay = 0.2, width = 1280, height = 720, res = 144)
+save_gif(plot.wave("density"), "Figures/Figure S5.gif", delay = 0.2, width = 1280, height = 720, res = 144)
 

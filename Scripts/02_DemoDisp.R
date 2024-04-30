@@ -1,34 +1,34 @@
 ##### Set up functions for demography and ant dispersal ---------------------------------------------------
 
-# Demography function for collecting parameters into single vector
+# Define demography function for collecting parameters into single vector
 adsp.param <- function(aNum, aVal){
   
   # Prepare vector to store all demographic parameters
   aParam <- c()
   
-  # Parameters for rosette size after establishment in autumn
+  # Set parameters for rosette size after establishment in autumn
   aParam[1] <- demo_rose            # Size at establishment mean
   aParam[2] <- demo_rose_err        # Size at establishment SD
   
-  # Parameters for rosette survival, and growth in spring
+  # Set parameters for rosette survival, and growth in spring
   aParam[3] <- demo_surv            # Prob. of survival
   aParam[4] <- demo_grow_NW[1]      # Size after growth intercept
   aParam[5] <- demo_grow_NW[2]      # Size after growth size-slope
   aParam[6] <- demo_grow_err        # Size after growth SD
   
-  # Parameters for flowering probability, and flower head count
+  # Set parameters for flowering probability, and flower head count
   aParam[7] <- demo_flow            # Prob. of flowering
   aParam[8] <- demo_head_NW[1]      # Head count intercept
   aParam[9] <- demo_head_NW[2]      # Head count size-slope
   aParam[10] <- demo_head_err       # Head count SD
   
-  # Parameters for flower head height above ground (in cm)
+  # Set parameters for flower head height above ground (in cm)
   aParam[11] <- demo_hdht_NW[1]     # Head height intercept
   aParam[12] <- demo_hdht_NW[2]     # Head height size-slope
   aParam[13] <- demo_hdht_err       # Head height SD
   
-  # Parameters for seed production, survival, establishment, and seed bank dynamics
-  aParam[14] <- 476                 # Seeds per flower head
+  # Set parameters for seed production, survival, establishment, and seed bank dynamics
+  aParam[14] <- 476                 # Seed count per flower head
   aParam[15] <- 0.850               # Prob. of surviving pre-dispersal seed predation (florivory)
   aParam[16] <- 0.233               # Prob. of establishment from seed
   aParam[17] <- 0.233               # Prob. of seed entering seed bank if not establishing
@@ -45,7 +45,7 @@ adsp.param <- function(aNum, aVal){
   # Return vector of demographic parameters
   return(aParam)}
 
-# Demography function for survival, reproduction, and more
+# Define demography function for survival, growth, reproduction, and more
 adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
   
   # Import vector of demographic parameters
@@ -58,33 +58,33 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
     vals[vals < 0] <- 0
     return(vals)}
   
-  # Rosette survival before growth stage
+  # Rosette survival over winter
   if(dType == "surv"){
     vals <- sample(c(1, 0), size = n, prob = c(aParam[3], 1 - aParam[3]), replace = TRUE)
     return(vals)}
   
-  # Rosette size after growth
+  # Rosette size after spring growth
   # Round negatives up to zero
   if(dType == "grow"){
     vals <- aParam[4] + aParam[5]*rsize + rnorm(length(rsize), mean = 0, sd = aParam[6])
     vals[vals < 0] <- 0
     return(vals)}
   
-  # Flowering probability as function of initial rosette size
+  # Rosette bolting and subsequent flowering
   if(dType == "flow"){
     vals <- sample(c(1, 0), size = n, prob = c(aParam[7], 1 - aParam[7]), replace = TRUE)
     return(vals)}
   
-  # Flower production as function of initial rosette size
-  # Round negatives up to zero, and any non-integers up to the nearest head
+  # Flower head production
+  # Round negatives up to zero, and any decimals to the nearest integer
   if(dType == "head"){
     vals <- exp(aParam[8] + aParam[9]*rsize + rnorm(length(rsize), mean = 0, sd = aParam[10]))
     vals[vals < 0] <- 0
-    vals <- ceiling(vals)
+    vals <- round(vals)
     return(vals)}
   
-  # Distribution of flower heights for a given individual
-  # Round negatives up to zero, and convert height from cm to m before returning values
+  # Flower head heights above ground
+  # Round negatives up to zero, and convert height from cm to m
   if(dType == "hdht"){
     vals <- aParam[11] + aParam[12]*rsize + rnorm(length(rsize), mean = 0, sd = aParam[13])
     vals[vals < 0] <- 0
@@ -95,17 +95,17 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
   # First term is number of viable seeds that survive florivory
   # Second term is proportion of seeds not removed by ants, or removed by ants but not eaten
   # Third term is proportion of seeds that will either establish, or not establish but enter seed bank
-  # Round up to nearest whole seed
+  # Round to nearest whole seed
   if(dType == "seed"){
     seed <- aParam[14]*aParam[15]
     prop1 <- ((1 - aParam[20]) + (aParam[20]*aParam[21]))
     prop2 <- (aParam[16] + (1 - aParam[16])*aParam[17])
-    vals <- ceiling(seed*prop1*prop2)
+    vals <- round(seed*prop1*prop2)
     return(vals)}
   
   # Establishment of seeds not entering the seed bank
   # Probability recalculated to condition on individuals that did not experience post-predation death
-  # We already accounted for post-predation death, so non-establishing seeds must enter seed bank
+  # Since we already accounted for post-predation death, non-establishing seeds must enter seed bank
   if(dType == "estb"){
     prob <- (aParam[16])/(aParam[16] + (1 - aParam[16])*aParam[17])
     vals <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
@@ -128,7 +128,7 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
     vals <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
     return(vals)}}
 
-# Function to see if a seed is taken to the nearest ant nest
+# Define function to determine whether a seed is taken to the nearest ant nest
 adsp.disp <- function(d, range){
   
   # Calculate distance between seed and nests within the max range
@@ -162,6 +162,7 @@ wdsp.param <- function(wNum, wVal){
   wParam[5] <- disp_ws[1]           # Shape wind speed, Weibull dist.
   wParam[6] <- disp_ws[2]           # Scale wind speed, Weibull dist.
   
+  # Scale only specified dispersal parameter
   # Note: transformation on TV parameters transforms mean/SD, NOT log mean/SD
   # Note: if transforming wind speeds, use wNum = 5 for mean and wNum = 6 for SD
   if(wNum == 1){
@@ -193,7 +194,7 @@ wdsp.wald <- function(n, H, wVec){
   nf <- n - nr
   
   # Initialise physical constants
-  K <- 0.4          # von Karman constant
+  K <- 0.4          # Von Karman constant
   C0 <- 3.125       # Kolmogorov constant
   
   # Initialise other fixed quantities
@@ -231,20 +232,20 @@ wdsp.wald <- function(n, H, wVec){
     # Calculate location parameter nu
     nu <- H*U/f
     
-    # Generate inverse Gaussian distribution for seeds that release
+    # Generate inverse Gaussian distribution for seeds that are released
     # Then marginalise onto single spatial axis, assuming no dominant wind direction
     dists <- as.numeric(rinvGauss(nr, nu = nu, lambda = lambda))*cos(runif(nr, 0, 2*pi))
     
-    # For seeds that do not release, assume capitilum falls in place
+    # Assume capitulum falls in place for seeds that do not release
     # Thus, these seeds travel a distance of zero
     dists <- c(dists, rep(0, nf))
     return(dists)}
   
-  # No dispersal if no seeds are released above canopy
+  # Do not simulate dispersal if no seeds are released above canopy
   if(H <= h | nr == 0){
     return(rep(0, n))}}
 
-# Function to estimate dispersal distances from given point
+# Define function to estimate dispersal distances from given point
 wdsp.disp <- function(n, H, wVec, d0 = 0){
   d <- wdsp.wald(n, H, wVec) + d0
   return(d)}
