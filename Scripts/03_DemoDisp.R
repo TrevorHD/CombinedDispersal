@@ -35,7 +35,7 @@ adsp.param <- function(aNum, aVal){
   aParam[18] <- 0.233               # Prob. of seed establishing from seed bank
   aParam[19] <- 0.260               # Prob. of seed survival in seed bank
   aParam[20] <- 0.948               # Prob. of seed removal by ants
-  aParam[21] <- 0.100               # Prob. of surviving predation if removed by ants
+  aParam[21] <- 0.900               # Prob. of predation if removed by ants
   
   # Scale only specified demographic parameter
   aVec <- rep(1, length(aParam))
@@ -98,7 +98,7 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
   # Round to nearest whole seed
   if(dType == "seed"){
     seed <- aParam[14]*aParam[15]
-    prop1 <- ((1 - aParam[20]) + (aParam[20]*aParam[21]))
+    prop1 <- ((1 - aParam[20]) + (aParam[20]*(1 - aParam[21])))
     prop2 <- (aParam[16] + (1 - aParam[16])*aParam[17])
     vals <- round(seed*prop1*prop2)
     return(vals)}
@@ -124,15 +124,15 @@ adsp.demo <- function(dType, aVec, n = 0, rsize = 0){
   # Removal of seeds by ants following primary dispersal
   # Probability recalculated to condition on individuals that did not experience predation
   if(dType == "ants"){
-    prob <- (aParam[20]*aParam[21])/((1 - aParam[20]) + (aParam[20]*aParam[21]))
+    prob <- (aParam[20]*(1 - aParam[21]))/((1 - aParam[20]) + (aParam[20]*(1 - aParam[21])))
     vals <- sample(c(1, 0), size = n, prob = c(prob, 1 - prob), replace = TRUE)
     return(vals)}}
 
 # Define function to determine whether a seed is taken to the nearest ant nest
-adsp.disp <- function(d, range){
+adsp.disp <- function(d, range, nestList){
   
   # Calculate distance between seed and nests within the max range
-  dist <- nestsR[abs(nestsR - d) <= range] - d
+  dist <- nestList[abs(nestList - d) <= range] - d
   
   # Select the closest nest (i.e. smallest absolute distance)
   dist <- dist[which.min(abs(dist))]
@@ -249,4 +249,11 @@ wdsp.wald <- function(n, H, wVec){
 wdsp.disp <- function(n, H, wVec, d0 = 0){
   d <- wdsp.wald(n, H, wVec) + d0
   return(d)}
+
+# Define function to create seed IDs after wind dispersal
+wdsp.sIDs <- function(plIDs, SBIDs, n){
+  idx <- c(plIDs, SBIDs)
+  id <- 0:(max(idx) + n)
+  id <- setdiff(id, idx)[1:n]
+  return(id)}
 
