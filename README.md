@@ -32,15 +32,15 @@ Sessile organisms often rely on their environment to facilitate the dispersal of
 
 **Figure 1** *(.tif)* - Schematic for the algorithm used in the individual-based model of population spread.
 
-**Figure 2** *(.tif)* - Diagram of how the individual-based movel for population spread works.
+**Figure 2** *(.tif)* - Elasticity of median simulated spread rates for various dispersal-related parameters.
 
-**Figure 3** *(.tif)* - 
+**Figure 3** *(.tif)* - Perturbations of median simulated spread rates for various dispersal-related parameters.
 
-**Figure S1** *(.tif)* - An example of wave movement, using snapshots over time.
+**Figure S1** *(.tif)* - An example of simulated wave movement, using snapshots over time.
 
-**Figure S2** *(.gif)* - An example of wave movement, using bars to visualise density (not featured in manuscript).
+**Figure S2** *(.gif)* - An example of simulated wave movement, using bars to visualise density (not featured in manuscript).
 
-**Figure S3** *(.gif)* - An example of wave movement, using lines to visualise density (not featured in manuscript).
+**Figure S3** *(.gif)* - An example of simulated wave movement, using lines to visualise density (not featured in manuscript).
 
 ## Scripts
 
