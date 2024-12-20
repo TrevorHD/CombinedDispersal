@@ -30,7 +30,7 @@ Sessile organisms often rely on their environment to facilitate the dispersal of
 
 ## Figures
 
-**Figure 1** *(.tif)* - Schematic for the algorithm used in the individual-based model of population spread.
+**Figure 1** *(.pptx)* - Schematic for the algorithm used in the individual-based model of population spread.
 
 **Figure 2** *(.tif)* - Elasticity of median simulated spread rates for various dispersal-related parameters.
 
